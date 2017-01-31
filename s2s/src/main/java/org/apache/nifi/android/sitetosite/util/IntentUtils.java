@@ -42,7 +42,11 @@ public class IntentUtils {
         Parcel parcel = Parcel.obtain();
         parcelable.writeToParcel(parcel, 0);
         parcel.setDataPosition(0);
-        return parcel.marshall();
+        try {
+            return parcel.marshall();
+        } finally {
+            parcel.recycle();
+        }
     }
 
     public static <T extends Serializable> byte[] marshallSerializable(T serializable) {
@@ -52,7 +56,11 @@ public class IntentUtils {
         Parcel parcel = Parcel.obtain();
         parcel.writeSerializable(serializable);
         parcel.setDataPosition(0);
-        return parcel.marshall();
+        try {
+            return parcel.marshall();
+        } finally {
+            parcel.recycle();
+        }
     }
 
     public static <T extends Parcelable> T unmarshallParcelable(byte[] bytes, Class<T> clazz) {
@@ -68,6 +76,8 @@ public class IntentUtils {
             return (T) creator.createFromParcel(parcel);
         } catch (Exception e) {
             throw new BadParcelableException(e);
+        } finally {
+            parcel.recycle();
         }
     }
 
@@ -83,6 +93,8 @@ public class IntentUtils {
             return (T) parcel.readSerializable();
         } catch (Exception e) {
             throw new BadParcelableException(e);
+        } finally {
+            parcel.recycle();
         }
     }
 

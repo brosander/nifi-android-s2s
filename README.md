@@ -3,6 +3,7 @@
 
 ### Building
 ```shell
+export ANDROID_HOME=YOUR_SDK_DIR
 ./gradlew clean build
 ```
 
