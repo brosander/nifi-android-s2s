@@ -26,6 +26,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Status of all known peers
+ */
 public class PeerStatus implements Parcelable {
     private final List<Peer> peers;
     private final long lastPeerUpdate;
@@ -60,18 +63,27 @@ public class PeerStatus implements Parcelable {
         sort();
     }
 
-    public PeerStatus(PeerStatus peerStatus) {
-        this(peerStatus.getPeers(), peerStatus.getLastPeerUpdate());
-    }
-
+    /**
+     * Gets the peers
+     *
+     * @return the peers
+     */
     public List<Peer> getPeers() {
         return peers;
     }
 
+    /**
+     * Sorts the peer list
+     */
     public void sort() {
         Collections.sort(peers);
     }
 
+    /**
+     * Gets the last time the peers were updated
+     *
+     * @return the last time the peers were updated
+     */
     public long getLastPeerUpdate() {
         return lastPeerUpdate;
     }

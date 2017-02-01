@@ -39,6 +39,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Keeps track of peers and will try all of them in a prioritized order for any operations
+ */
 public class PeerTracker {
     public static final String CANONICAL_NAME = PeerTracker.class.getCanonicalName();
     private final Set<String> initialPeers;
@@ -84,6 +87,11 @@ public class PeerTracker {
         });
     }
 
+    /**
+     * Updates the peer list
+     *
+     * @throws IOException if no peer was able to send an updated peer list
+     */
     public synchronized void updatePeers() throws IOException {
         IOException lastException = null;
         long lastPeerUpdate = SystemClock.elapsedRealtime();
@@ -124,6 +132,13 @@ public class PeerTracker {
         }
     }
 
+    /**
+     * Creates a transaction
+     *
+     * @param portIdentifier the port identifier to send the data to
+     * @return the transaction
+     * @throws IOException if no peer was able to create the transaction
+     */
     public synchronized Transaction createTransaction(String portIdentifier) throws IOException {
         IOException lastException = null;
         updatePeersIfNecessary();
@@ -144,6 +159,13 @@ public class PeerTracker {
         throw lastException;
     }
 
+    /**
+     * Gets the port identifier for a given port name
+     *
+     * @param portName the port name
+     * @return the port identifier
+     * @throws IOException if no peer was able to respond with s2s info
+     */
     public synchronized String getPortIdentifier(String portName) throws IOException {
         IOException lastException = null;
         updatePeersIfNecessary();
@@ -171,7 +193,7 @@ public class PeerTracker {
 
     private void updatePeersIfNecessary() throws IOException {
         long elapsedRealtime = SystemClock.elapsedRealtime();
-        if (TimeUnit.NANOSECONDS.convert(elapsedRealtime - peerStatus.getLastPeerUpdate(), TimeUnit.MILLISECONDS) > siteToSiteClientConfig.getPeerUpdateIntervalNanos()) {
+        if (elapsedRealtime - peerStatus.getLastPeerUpdate() > siteToSiteClientConfig.getPeerUpdateInterval(TimeUnit.MILLISECONDS)) {
             updatePeers();
         }
     }

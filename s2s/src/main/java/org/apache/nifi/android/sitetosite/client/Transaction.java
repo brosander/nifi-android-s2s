@@ -46,6 +46,9 @@ import java.util.regex.Pattern;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedOutputStream;
 
+/**
+ * Transaction for sending data to a NiFi instance
+ */
 public class Transaction {
     public static final String CANONICAL_NAME = Transaction.class.getCanonicalName();
 
@@ -174,6 +177,12 @@ public class Transaction {
         return Collections.unmodifiableMap(result);
     }
 
+    /**
+     * Sends the dataPacket to NiFi
+     *
+     * @param dataPacket the dataPacket
+     * @throws IOException if there is an error sending it
+     */
     public void send(DataPacket dataPacket) throws IOException {
         final DataOutputStream out = new DataOutputStream(sendFlowFilesOutputStream);
 
@@ -201,6 +210,11 @@ public class Transaction {
         out.write(bytes);
     }
 
+    /**
+     * Confirms the sent data and verifies the checksum
+     *
+     * @throws IOException if there is a problem confirming or verifying the checksum
+     */
     public void confirm() throws IOException {
         int responseCode = sendFlowFilesConnection.getResponseCode();
         if (responseCode != 200 && responseCode != 202) {
@@ -214,10 +228,22 @@ public class Transaction {
         }
     }
 
+    /**
+     * Completes the transaction
+     *
+     * @return a transaction result
+     * @throws IOException if there is a problem completing the transaction
+     */
     public TransactionResult complete() throws IOException {
         return endTransaction(ResponseCode.CONFIRM_TRANSACTION);
     }
 
+    /**
+     * Cancels the transaction
+     *
+     * @return a transaction result
+     * @throws IOException if there is a problem canceling the transaction
+     */
     public TransactionResult cancel() throws IOException {
         return endTransaction(ResponseCode.CANCEL_TRANSACTION);
     }

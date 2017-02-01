@@ -27,6 +27,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
+/**
+ * Json streaming parser for getting transaction result
+ */
 public class TransactionResultParser {
     public static TransactionResult parseTransactionResult(InputStream inputStream) throws IOException {
         int flowFilesSent = 0;

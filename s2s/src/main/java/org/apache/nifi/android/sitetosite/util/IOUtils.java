@@ -23,6 +23,13 @@ import java.io.InputStream;
 public class IOUtils {
     private static final int MAX_LONG_LEN = String.valueOf(Long.MAX_VALUE).length();
 
+    /**
+     * Reads the contents of an input stream into a long value
+     *
+     * @param inputStream the input stream
+     * @return the value
+     * @throws IOException if there are problems reading the stream
+     */
     public static long readInputStreamAndParseAsLong(InputStream inputStream) throws IOException {
         byte[] buf = new byte[MAX_LONG_LEN];
         int read;

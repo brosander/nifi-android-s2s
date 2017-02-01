@@ -25,11 +25,15 @@ import org.apache.nifi.android.sitetosite.client.TransactionResult;
 
 import java.io.IOException;
 
+/**
+ * Result receiver for use in scheduled transfers
+ */
 public class SiteToSiteResultReceiver extends ResultReceiver {
     public static final String IO_EXCEPTION = "IOException";
     public static final String TRANSACTION_RESULT = "TRANSACTION_RESULT";
 
     private final TransactionResultCallback delegate;
+
     /**
      * Create a new ResultReceive to receive results.  Your
      * {@link #onReceiveResult} method will be called from the thread running
@@ -42,6 +46,34 @@ public class SiteToSiteResultReceiver extends ResultReceiver {
         this.delegate = delegate;
     }
 
+    /**
+     * Sends the given result to the receiver
+     *
+     * @param resultReceiver         the receiver
+     * @param transactionResult      the result
+     * @param siteToSiteClientConfig (possibly updated) s2s config
+     */
+    public static void onSuccess(ResultReceiver resultReceiver, TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
+        Bundle resultData = new Bundle();
+        resultData.putParcelable(SiteToSiteService.SITE_TO_SITE_CONFIG, siteToSiteClientConfig);
+        resultData.putParcelable(TRANSACTION_RESULT, transactionResult);
+        resultReceiver.send(0, resultData);
+    }
+
+    /**
+     * Sends the given exception to the receiver
+     *
+     * @param resultReceiver         the receiver
+     * @param exception              the exception
+     * @param siteToSiteClientConfig (possibly updated) s2s config
+     */
+    public static void onException(ResultReceiver resultReceiver, IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
+        Bundle resultData = new Bundle();
+        resultData.putParcelable(SiteToSiteService.SITE_TO_SITE_CONFIG, siteToSiteClientConfig);
+        resultData.putSerializable(IO_EXCEPTION, exception);
+        resultReceiver.send(1, resultData);
+    }
+
     @Override
     protected void onReceiveResult(int resultCode, Bundle resultData) {
         super.onReceiveResult(resultCode, resultData);
@@ -51,21 +83,7 @@ public class SiteToSiteResultReceiver extends ResultReceiver {
         if (resultCode == 0) {
             delegate.onSuccess(transactionResult, siteToSiteClientConfig);
         } else {
-            delegate.onException((IOException)resultData.getSerializable(IO_EXCEPTION), siteToSiteClientConfig);
+            delegate.onException((IOException) resultData.getSerializable(IO_EXCEPTION), siteToSiteClientConfig);
         }
-    }
-
-    public static void onSuccess(ResultReceiver resultReceiver, TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
-        Bundle resultData = new Bundle();
-        resultData.putParcelable(SiteToSiteService.SITE_TO_SITE_CONFIG, siteToSiteClientConfig);
-        resultData.putParcelable(TRANSACTION_RESULT, transactionResult);
-        resultReceiver.send(0, resultData);
-    }
-
-    public static void onException(ResultReceiver resultReceiver, IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
-        Bundle resultData = new Bundle();
-        resultData.putParcelable(SiteToSiteService.SITE_TO_SITE_CONFIG, siteToSiteClientConfig);
-        resultData.putSerializable(IO_EXCEPTION, exception);
-        resultReceiver.send(1, resultData);
     }
 }

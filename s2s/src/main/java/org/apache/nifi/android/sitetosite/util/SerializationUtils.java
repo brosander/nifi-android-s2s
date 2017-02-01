@@ -24,7 +24,15 @@ import android.os.Parcelable;
 
 import java.io.Serializable;
 
-public class IntentUtils {
+public class SerializationUtils {
+    /**
+     * Puts a parcelable in an intent in such a way that the intent can be used with the AlarmManager
+     *
+     * @param parcelable the parcelable
+     * @param intent     the intent
+     * @param name       the name to put it under
+     * @param <T>        the type
+     */
     public static <T extends Parcelable> void putParcelable(T parcelable, Intent intent, String name) {
         byte[] bytes = marshallParcelable(parcelable);
         if (bytes == null) {
@@ -35,6 +43,13 @@ public class IntentUtils {
         intent.putExtra(name, bytes);
     }
 
+    /**
+     * Marshalls a parcelable into a byte array
+     *
+     * @param parcelable the parcelable
+     * @param <T>        the type
+     * @return the byte array
+     */
     public static <T extends Parcelable> byte[] marshallParcelable(T parcelable) {
         if (parcelable == null) {
             return null;
@@ -49,6 +64,13 @@ public class IntentUtils {
         }
     }
 
+    /**
+     * Marshalls a serializable into a byte array
+     *
+     * @param serializable the serializable
+     * @param <T>          the type
+     * @return the byte array
+     */
     public static <T extends Serializable> byte[] marshallSerializable(T serializable) {
         if (serializable == null) {
             return null;
@@ -63,6 +85,14 @@ public class IntentUtils {
         }
     }
 
+    /**
+     * Unmarshalls a parcelable's byte array into the object
+     *
+     * @param bytes the byte array
+     * @param clazz the class
+     * @param <T>   the type
+     * @return the object
+     */
     public static <T extends Parcelable> T unmarshallParcelable(byte[] bytes, Class<T> clazz) {
         if (bytes == null) {
             return null;
@@ -81,6 +111,14 @@ public class IntentUtils {
         }
     }
 
+    /**
+     * Unmarshalls a serializable's byte array into the object
+     *
+     * @param bytes the bytes
+     * @param <T>   the type
+     * @return the object
+     */
+    @SuppressWarnings("unchecked")
     public static <T extends Serializable> T unmarshallSerializable(byte[] bytes) {
         if (bytes == null) {
             return null;
@@ -98,6 +136,14 @@ public class IntentUtils {
         }
     }
 
+    /**
+     * Gets a parcelable from an intent
+     *
+     * @param intent the intent
+     * @param name   the name
+     * @param <T>    the type
+     * @return the parcelable
+     */
     @SuppressWarnings("unchecked")
     public static <T extends Parcelable> T getParcelable(Intent intent, String name) {
         byte[] bytes = intent.getByteArrayExtra(name);

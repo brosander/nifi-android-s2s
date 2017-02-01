@@ -41,6 +41,9 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
+/**
+ * Configuration object for use with the @{@link SiteToSiteClient}
+ */
 public class SiteToSiteClientConfig implements Parcelable {
     public static final Creator<SiteToSiteClientConfig> CREATOR = new Creator<SiteToSiteClientConfig>() {
         @Override
@@ -140,26 +143,39 @@ public class SiteToSiteClientConfig implements Parcelable {
         dest.writeString(password);
     }
 
-    public String getUrl() {
-        Set<String> urls = getUrls();
-        if (urls == null || urls.size() == 0) {
-            return null;
-        }
-        return urls.iterator().next();
-    }
-
+    /**
+     * Gets the NiFi instance URLs
+     *
+     * @return the NiFi instance URLs
+     */
     public Set<String> getUrls() {
         return Collections.unmodifiableSet(urls);
     }
 
+    /**
+     * Sets the NiFi instance URLs
+     *
+     * @param urls the NiFi instance URLs
+     */
     public void setUrls(Collection<String> urls) {
         this.urls = new HashSet<>(urls);
     }
 
+    /**
+     * Gets the HTTP(S) connection timeout
+     *
+     * @param timeUnit time unit to get timeout in
+     * @return the timeout
+     */
     public long getTimeout(TimeUnit timeUnit) {
         return timeUnit.convert(timeoutNanos, TimeUnit.NANOSECONDS);
     }
 
+    /**
+     * Gets the ssl context for use making the connections
+     *
+     * @return the ssl context
+     */
     public SSLContext getSslContext() {
         KeyManager[] keyManagers = getKeyManagers();
         TrustManager[] trustManagers = getTrustManagers();
@@ -178,10 +194,6 @@ public class SiteToSiteClientConfig implements Parcelable {
     }
 
     private KeyManager[] getKeyManagers() {
-        String keystoreFilename = getKeystoreFilename();
-        String keystorePassword = getKeystorePassword();
-        String keystoreType = getKeystoreType();
-
         if (keystoreFilename != null && keystorePassword != null && keystoreType != null) {
             try {
                 KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
@@ -198,15 +210,9 @@ public class SiteToSiteClientConfig implements Parcelable {
     }
 
     private TrustManager[] getTrustManagers() {
-        TrustManagerFactory trustManagerFactory;
-
-        String truststoreFilename = getTruststoreFilename();
-        String truststorePassword = getTruststorePassword();
-        String truststoreType = getTruststoreType();
-
         if (truststoreFilename != null && truststorePassword != null && truststoreType != null) {
             try {
-                trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 KeyStore trustStore = KeyStore.getInstance(truststoreType);
                 loadKeystore(trustStore, truststoreFilename, truststorePassword);
                 trustManagerFactory.init(trustStore);
@@ -234,175 +240,313 @@ public class SiteToSiteClientConfig implements Parcelable {
         }
     }
 
-    public String getKeystoreFilename() {
-        return keystoreFilename;
-    }
-
     public void setKeystoreFilename(String keystoreFilename) {
         this.keystoreFilename = keystoreFilename;
-    }
-
-    public String getKeystorePassword() {
-        return keystorePassword;
     }
 
     public void setKeystorePassword(String keystorePassword) {
         this.keystorePassword = keystorePassword;
     }
 
-    public String getKeystoreType() {
-        return keystoreType;
-    }
-
     public void setKeystoreType(String keystoreType) {
         this.keystoreType = keystoreType;
-    }
-
-    public String getTruststoreFilename() {
-        return truststoreFilename;
     }
 
     public void setTruststoreFilename(String truststoreFilename) {
         this.truststoreFilename = truststoreFilename;
     }
 
-    public String getTruststorePassword() {
-        return truststorePassword;
-    }
-
     public void setTruststorePassword(String truststorePassword) {
         this.truststorePassword = truststorePassword;
-    }
-
-    public String getTruststoreType() {
-        return truststoreType;
     }
 
     public void setTruststoreType(String truststoreType) {
         this.truststoreType = truststoreType;
     }
 
+    /**
+     * Returns a boolean indicating whether compression will be used
+     *
+     * @return a boolean indicating whether compression will be used
+     */
     public boolean isUseCompression() {
         return useCompression;
     }
 
+    /**
+     * Sets a boolean indicating whether compression will be used
+     *
+     * @param useCompression a boolean indicating whether compression will be used
+     */
     public void setUseCompression(boolean useCompression) {
         this.useCompression = useCompression;
     }
 
+    /**
+     * Gets the port name data will be sent to
+     *
+     * @return the port name data will be sent to
+     */
     public String getPortName() {
         return portName;
     }
 
+    /**
+     * Sets the port name data will be sent to
+     *
+     * @param portName the port name data will be sent to
+     */
     public void setPortName(String portName) {
         this.portName = portName;
     }
 
+    /**
+     * Gets the port identifier data will be sent to
+     *
+     * @return the port identifier data will be sent to
+     */
     public String getPortIdentifier() {
         return portIdentifier;
     }
 
+    /**
+     * Sets the port identifier data will be sent to
+     *
+     * @param portIdentifier the port identifier data will be sent to
+     */
     public void setPortIdentifier(String portIdentifier) {
         this.portIdentifier = portIdentifier;
     }
 
+    /**
+     * Gets the preferred batch duration
+     *
+     * @param timeUnit time unit to get duration for
+     * @return the preferred batch duration
+     */
     public long getPreferredBatchDuration(TimeUnit timeUnit) {
         return timeUnit.convert(preferredBatchDurationNanos, TimeUnit.NANOSECONDS);
     }
 
+    /**
+     * Gets the preferred batch size
+     *
+     * @return the preferred batch size
+     */
     public long getPreferredBatchSize() {
         return preferredBatchSize;
     }
 
+    /**
+     * Sets the preferred batch size
+     *
+     * @param preferredBatchSize the preferred batch size
+     */
     public void setPreferredBatchSize(long preferredBatchSize) {
         this.preferredBatchSize = preferredBatchSize;
     }
 
+    /**
+     * Gets the preferred batch count
+     *
+     * @return the preferred batch count
+     */
     public int getPreferredBatchCount() {
         return preferredBatchCount;
     }
 
+    /**
+     * Sets the preferred batch count
+     *
+     * @param preferredBatchCount the preferred batch count
+     */
     public void setPreferredBatchCount(int preferredBatchCount) {
         this.preferredBatchCount = preferredBatchCount;
     }
 
-    public void setTimeoutNanos(long timeoutNanos) {
-        this.timeoutNanos = timeoutNanos;
+    /**
+     * Sets the HTTP(S) connection timeout
+     *
+     * @param timeout  the timeout
+     * @param timeUnit the time unit
+     */
+    public void setTimeout(long timeout, TimeUnit timeUnit) {
+        this.timeoutNanos = timeUnit.toNanos(timeout);
     }
 
-    public void setPreferredBatchDurationNanos(long preferredBatchDurationNanos) {
-        this.preferredBatchDurationNanos = preferredBatchDurationNanos;
+    /**
+     * Sets the preferred batch duration
+     *
+     * @param preferredBatchDuration the preferred batch duration
+     * @param timeUnit               the time unit
+     */
+    public void setPreferredBatchDuration(long preferredBatchDuration, TimeUnit timeUnit) {
+        this.preferredBatchDurationNanos = timeUnit.toNanos(preferredBatchDuration);
     }
 
-    public void setProxyHost(String proxyHost) {
-        this.proxyHost = proxyHost;
-    }
-
-    public void setProxyPort(int proxyPort) {
-        this.proxyPort = proxyPort;
-    }
-
-    public void setProxyUsername(String proxyUsername) {
-        this.proxyUsername = proxyUsername;
-    }
-
-    public void setProxyPassword(String proxyPassword) {
-        this.proxyPassword = proxyPassword;
-    }
-
+    /**
+     * Gets the proxy host
+     *
+     * @return the proxy host
+     */
     public String getProxyHost() {
         return proxyHost;
     }
 
+    /**
+     * Sets the proxy host
+     *
+     * @param proxyHost the proxy host
+     */
+    public void setProxyHost(String proxyHost) {
+        this.proxyHost = proxyHost;
+    }
+
+    /**
+     * Gets the proxy port
+     *
+     * @return the proxy port
+     */
     public int getProxyPort() {
         return proxyPort;
     }
 
+    /**
+     * Sets the proxy port
+     *
+     * @param proxyPort the proxy port
+     */
+    public void setProxyPort(int proxyPort) {
+        this.proxyPort = proxyPort;
+    }
+
+    /**
+     * Gets the proxy username
+     *
+     * @return the proxy username
+     */
     public String getProxyUsername() {
         return proxyUsername;
     }
 
+    /**
+     * Sets the proxy username
+     *
+     * @param proxyUsername the proxy username
+     */
+    public void setProxyUsername(String proxyUsername) {
+        this.proxyUsername = proxyUsername;
+    }
+
+    /**
+     * Gets the proxy password
+     *
+     * @return the proxy password
+     */
     public String getProxyPassword() {
         return proxyPassword;
     }
 
-    public long getPeerUpdateIntervalNanos() {
-        return peerUpdateIntervalNanos;
+    /**
+     * Sets the proxy password
+     *
+     * @param proxyPassword the proxy password
+     */
+    public void setProxyPassword(String proxyPassword) {
+        this.proxyPassword = proxyPassword;
     }
 
-    public void setPeerUpdateIntervalNanos(long peerUpdateIntervalNanos) {
-        this.peerUpdateIntervalNanos = peerUpdateIntervalNanos;
+    /**
+     * Gets the peer update interval
+     *
+     * @param timeUnit the time unit
+     * @return the peer update interval
+     */
+    public long getPeerUpdateInterval(TimeUnit timeUnit) {
+        return timeUnit.convert(peerUpdateIntervalNanos, TimeUnit.NANOSECONDS);
     }
 
+    /**
+     * Sets the peer update interval
+     *
+     * @param peerUpdateInterval the peer update interval
+     * @param timeUnit           the time unit
+     */
+    public void setPeerUpdateInterval(long peerUpdateInterval, TimeUnit timeUnit) {
+        this.peerUpdateIntervalNanos = timeUnit.toNanos(peerUpdateInterval);
+    }
+
+    /**
+     * Gets the peer status
+     *
+     * @return the peer status
+     */
     public PeerStatus getPeerStatus() {
         return peerStatus;
     }
 
+    /**
+     * Sets the peer status
+     *
+     * @param peerStatus the peer status
+     */
     public void setPeerStatus(PeerStatus peerStatus) {
         this.peerStatus = peerStatus;
     }
 
+    /**
+     * Gets the username
+     *
+     * @return the username
+     */
     public String getUsername() {
         return username;
     }
 
+    /**
+     * Sets the username
+     *
+     * @param username the username
+     */
     public void setUsername(String username) {
         this.username = username;
     }
 
+    /**
+     * Gets the password
+     *
+     * @return the password
+     */
     public String getPassword() {
         return password;
     }
 
+    /**
+     * Sets the password
+     *
+     * @param password the password
+     */
     public void setPassword(String password) {
         this.password = password;
     }
 
+    /**
+     * Gets the idle connection expiration
+     *
+     * @param timeUnit the time unit
+     * @return the idle connection expiration
+     */
     public long getIdleConnectionExpiration(TimeUnit timeUnit) {
         return timeUnit.convert(idleConnectionExpirationNanos, TimeUnit.NANOSECONDS);
     }
 
-    public void setIdleConnectionExpirationNanos(long idleConnectionExpirationNanos) {
-        this.idleConnectionExpirationNanos = idleConnectionExpirationNanos;
+    /**
+     * Sets the idle connection expiration
+     *
+     * @param idleConnectionExpiration the idle connection expiration
+     * @param timeUnit                 the time unit
+     */
+    public void setIdleConnectionExpiration(long idleConnectionExpiration, TimeUnit timeUnit) {
+        this.idleConnectionExpirationNanos = timeUnit.toNanos(idleConnectionExpiration);
     }
 }

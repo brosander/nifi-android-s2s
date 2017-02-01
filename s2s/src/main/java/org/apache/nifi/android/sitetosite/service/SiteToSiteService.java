@@ -30,7 +30,7 @@ import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.Transaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
-import org.apache.nifi.android.sitetosite.util.IntentUtils;
+import org.apache.nifi.android.sitetosite.util.SerializationUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -64,7 +64,7 @@ public class SiteToSiteService extends IntentService {
             List<DataPacket> packets = intent.getExtras().getParcelableArrayList(DATA_PACKETS);
             if (packets.size() > 0) {
                 ResultReceiver transactionResultCallback = intent.getExtras().getParcelable(TRANSACTION_RESULT_CALLBACK);
-                SiteToSiteClientConfig siteToSiteClientConfig = IntentUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
+                SiteToSiteClientConfig siteToSiteClientConfig = SerializationUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
                 try {
                     SiteToSiteClient client = new SiteToSiteClient(siteToSiteClientConfig);
                     Transaction transaction = client.createTransaction();
@@ -82,7 +82,7 @@ public class SiteToSiteService extends IntentService {
                         SiteToSiteResultReceiver.onException(transactionResultCallback, e, siteToSiteClientConfig);
                     }
                 } finally {
-                    Intent repeatingIntent = IntentUtils.getParcelable(intent, SiteToSiteRepeating.REPEATING_INTENT);
+                    Intent repeatingIntent = SerializationUtils.getParcelable(intent, SiteToSiteRepeating.REPEATING_INTENT);
                     if (repeatingIntent != null) {
                         SiteToSiteRepeating.updateIntentConfig(getApplicationContext(), repeatingIntent, siteToSiteClientConfig);
                     }
@@ -120,7 +120,7 @@ public class SiteToSiteService extends IntentService {
         if (completeWakefulIntent) {
             intent.putExtra(SHOULD_COMPLETE_WAKEFUL_INTENT, true);
         }
-        IntentUtils.putParcelable(siteToSiteClientConfig, intent, SITE_TO_SITE_CONFIG);
+        SerializationUtils.putParcelable(siteToSiteClientConfig, intent, SITE_TO_SITE_CONFIG);
         return intent;
     }
 }

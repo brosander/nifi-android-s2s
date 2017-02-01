@@ -29,6 +29,9 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Json streaming parser for peer list
+ */
 public class PeerListParser {
     public static final String CANONICAL_NAME = PeerListParser.class.getCanonicalName();
 

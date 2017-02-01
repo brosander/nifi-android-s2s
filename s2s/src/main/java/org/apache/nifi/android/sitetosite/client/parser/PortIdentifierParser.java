@@ -25,6 +25,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
+/**
+ * Json stremaing parser for getting port identifier
+ */
 public class PortIdentifierParser {
     public static String getPortIdentifier(InputStream inputStream, String portName) throws IOException {
         JsonReader jsonReader = new JsonReader(new InputStreamReader(inputStream, Charsets.UTF_8));

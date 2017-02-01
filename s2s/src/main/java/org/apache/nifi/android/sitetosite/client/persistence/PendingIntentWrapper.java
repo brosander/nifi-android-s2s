@@ -19,6 +19,9 @@ package org.apache.nifi.android.sitetosite.client.persistence;
 
 import android.app.PendingIntent;
 
+/**
+ * Wrapper for PendingIntent and rowId
+ */
 public class PendingIntentWrapper {
     private final long rowId;
     private final PendingIntent pendingIntent;
@@ -28,10 +31,20 @@ public class PendingIntentWrapper {
         this.pendingIntent = pendingIntent;
     }
 
+    /**
+     * Get the rowId
+     *
+     * @return the rowId
+     */
     public long getRowId() {
         return rowId;
     }
 
+    /**
+     * Get the pending intent
+     *
+     * @return the pending intent
+     */
     public PendingIntent getPendingIntent() {
         return pendingIntent;
     }

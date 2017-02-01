@@ -22,6 +22,9 @@ import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import java.io.IOException;
 import java.util.Date;
 
+/**
+ * Results of a transaction
+ */
 public class TransactionLogEntry {
     private long id;
     private final Date created;
@@ -43,10 +46,20 @@ public class TransactionLogEntry {
         this.ioException = ioException;
     }
 
+    /**
+     * Gets the id
+     *
+     * @return the id
+     */
     public long getId() {
         return id;
     }
 
+    /**
+     * Gets the created date
+     *
+     * @return the created date
+     */
     public Date getCreated() {
         return created;
     }
@@ -55,10 +68,20 @@ public class TransactionLogEntry {
         this.id = id;
     }
 
+    /**
+     * Gets the transaction result
+     *
+     * @return the transaction result
+     */
     public TransactionResult getTransactionResult() {
         return transactionResult;
     }
 
+    /**
+     * Gets the io exception
+     *
+     * @return the io exception
+     */
     public IOException getIoException() {
         return ioException;
     }

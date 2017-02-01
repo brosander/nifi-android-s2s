@@ -22,6 +22,9 @@ import android.os.Parcelable;
 
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
 
+/**
+ * Result of a transaction
+ */
 public class TransactionResult implements Parcelable {
     private final int flowFilesSent;
     private final ResponseCode responseCode;
@@ -48,14 +51,29 @@ public class TransactionResult implements Parcelable {
         this.message = message;
     }
 
+    /**
+     * Gets the number of flowFiles sent
+     *
+     * @return the number of flowFiles sent
+     */
     public int getFlowFilesSent() {
         return flowFilesSent;
     }
 
+    /**
+     * Gets the response code
+     *
+     * @return the response code
+     */
     public ResponseCode getResponseCode() {
         return responseCode;
     }
 
+    /**
+     * Gets the message
+     *
+     * @return the message
+     */
     public String getMessage() {
         return message;
     }

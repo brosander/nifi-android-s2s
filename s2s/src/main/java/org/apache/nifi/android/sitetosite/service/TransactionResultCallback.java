@@ -25,8 +25,29 @@ import org.apache.nifi.android.sitetosite.client.TransactionResult;
 
 import java.io.IOException;
 
+/**
+ * Callback to be invoked on transaction result
+ */
 public interface TransactionResultCallback {
+    /**
+     * Handler to do the invoking
+     *
+     * @return the handler
+     */
     Handler getHandler();
+
+    /**
+     * Success callback
+     *
+     * @param transactionResult the result
+     * @param siteToSiteClientConfig (possibly updated) s2s config
+     */
     void onSuccess(TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig);
+
+    /**
+     * Failure callback
+     * @param exception the error
+     * @param siteToSiteClientConfig (possibly updated) s2s config
+     */
     void onException(IOException exception, SiteToSiteClientConfig siteToSiteClientConfig);
 }

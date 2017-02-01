@@ -29,7 +29,7 @@ import android.os.Parcel;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.peer.PeerStatus;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeatableIntent;
-import org.apache.nifi.android.sitetosite.util.IntentUtils;
+import org.apache.nifi.android.sitetosite.util.SerializationUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,6 +38,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Easily save and load state useful for site-to-site communication
+ */
 public class SiteToSiteDB {
     public static final String TRANSACTION_LOG_ENTRY_SAVED = SiteToSiteDB.class.getCanonicalName() + ".save(transactionLogEntry)";
     public static final String ID_COLUMN = "ID";
@@ -64,7 +67,7 @@ public class SiteToSiteDB {
 
     public SiteToSiteDB(Context context) {
         this.context = context;
-        sqLiteOpenHelper = new SQLiteOpenHelper(context, S2S_TABLE_NAME + "_log.db", null, VERSION) {
+        sqLiteOpenHelper = new SQLiteOpenHelper(context, SiteToSiteDB.class.getSimpleName() + ".db", null, VERSION) {
             @Override
             public void onCreate(SQLiteDatabase db) {
                 db.execSQL("CREATE TABLE " + S2S_TABLE_NAME + " (" + ID_COLUMN + " INTEGER PRIMARY KEY, " + S2S_CREATED_COLUMN + " INTEGER, " + S2S_TRANSACTION_RESULT_COLUMN + " BLOB, " + S2S_IO_EXCEPTION_COLUMN + " BLOB)");
@@ -83,13 +86,18 @@ public class SiteToSiteDB {
         };
     }
 
+    /**
+     * Saves the transactionLogEntry
+     *
+     * @param transactionLogEntry the transactionLogEntry
+     */
     public void save(TransactionLogEntry transactionLogEntry) {
         SQLiteDatabase writableDatabase = sqLiteOpenHelper.getWritableDatabase();
         try {
             ContentValues values = new ContentValues();
             values.put(S2S_CREATED_COLUMN, transactionLogEntry.getCreated().getTime());
-            values.put(S2S_TRANSACTION_RESULT_COLUMN, IntentUtils.marshallParcelable(transactionLogEntry.getTransactionResult()));
-            values.put(S2S_IO_EXCEPTION_COLUMN, IntentUtils.marshallSerializable(transactionLogEntry.getIoException()));
+            values.put(S2S_TRANSACTION_RESULT_COLUMN, SerializationUtils.marshallParcelable(transactionLogEntry.getTransactionResult()));
+            values.put(S2S_IO_EXCEPTION_COLUMN, SerializationUtils.marshallSerializable(transactionLogEntry.getIoException()));
             transactionLogEntry.setId(writableDatabase.insert(S2S_TABLE_NAME, null, values));
             context.sendBroadcast(new Intent(TRANSACTION_LOG_ENTRY_SAVED));
         } finally {
@@ -97,6 +105,12 @@ public class SiteToSiteDB {
         }
     }
 
+    /**
+     * Gets all transactionLogEntries with a timestamp after the timestamp parameter
+     *
+     * @param lastTimestamp the timestamp
+     * @return all transactionLogEntries after the timestamp
+     */
     public List<TransactionLogEntry> getLogEntries(long lastTimestamp) {
         List<TransactionLogEntry> transactionLogEntries = new ArrayList<>();
         SQLiteDatabase readableDatabase = sqLiteOpenHelper.getReadableDatabase();
@@ -110,8 +124,8 @@ public class SiteToSiteDB {
                 while (cursor.moveToNext()) {
                     transactionLogEntries.add(new TransactionLogEntry(cursor.getLong(idIndex),
                             new Date(cursor.getLong(createdIndex)),
-                            IntentUtils.unmarshallParcelable(cursor.getBlob(transactionResultIndex), TransactionResult.class),
-                            IntentUtils.<IOException>unmarshallSerializable(cursor.getBlob(ioeIndex))));
+                            SerializationUtils.unmarshallParcelable(cursor.getBlob(transactionResultIndex), TransactionResult.class),
+                            SerializationUtils.<IOException>unmarshallSerializable(cursor.getBlob(ioeIndex))));
                 }
             } finally {
                 cursor.close();
@@ -122,6 +136,11 @@ public class SiteToSiteDB {
         return transactionLogEntries;
     }
 
+    /**
+     * Saves the repeatable intent (useful for later cancelling an alarm after the application has restarted)
+     *
+     * @param siteToSiteRepeatableIntent the repeatable intent
+     */
     public void save(SiteToSiteRepeatableIntent siteToSiteRepeatableIntent) {
         Parcel parcel = Parcel.obtain();
         siteToSiteRepeatableIntent.getIntent().writeToParcel(parcel, 0);
@@ -138,6 +157,11 @@ public class SiteToSiteDB {
         }
     }
 
+    /**
+     * Deletes the pending intent with the given id
+     *
+     * @param id the id
+     */
     public void deletePendingIntent(long id) {
         SQLiteDatabase writableDatabase = sqLiteOpenHelper.getWritableDatabase();
         try {
@@ -147,6 +171,11 @@ public class SiteToSiteDB {
         }
     }
 
+    /**
+     * Retreives all pending intents that have been saved
+     *
+     * @return the pending intents
+     */
     public List<PendingIntentWrapper> getPendingIntents() {
         List<PendingIntentWrapper> pendingIntents = new ArrayList<>();
         SQLiteDatabase readableDatabase = sqLiteOpenHelper.getReadableDatabase();
@@ -174,6 +203,14 @@ public class SiteToSiteDB {
         return pendingIntents;
     }
 
+    /**
+     * Saves the peer status for a given url set and proxy
+     *
+     * @param peerUrlsPreference the configured peer urls
+     * @param proxyHost the proxy host
+     * @param proxyPort the proxy port
+     * @param peerStatus the peer status to save
+     */
     public void save(Set<String> peerUrlsPreference, String proxyHost, int proxyPort, PeerStatus peerStatus) {
         if (peerStatus == null) {
             return;
@@ -206,6 +243,14 @@ public class SiteToSiteDB {
         }
     }
 
+    /**
+     * Gets the peer status for a given url set and proxy
+     *
+     * @param peerUrlsPreference the configured urls
+     * @param proxyHost the proxy host
+     * @param proxyPort the proxy port
+     * @return the peer status
+     */
     public PeerStatus getPeerStatus(Set<String> peerUrlsPreference, String proxyHost, int proxyPort) {
         String peerUrlsString = getPeerUrlsString(peerUrlsPreference);
 
@@ -245,10 +290,20 @@ public class SiteToSiteDB {
         return stringBuilder.toString();
     }
 
+    /**
+     * Returns a readable sqlite db
+     *
+     * @return a readable sqlite db
+     */
     public SQLiteDatabase getReadableDatabase() {
         return sqLiteOpenHelper.getReadableDatabase();
     }
 
+    /**
+     * Returns a writable sqlite db
+     *
+     * @return a writable sqlite db
+     */
     public SQLiteDatabase getWritableDatabase() {
         return sqLiteOpenHelper.getWritableDatabase();
     }

@@ -27,7 +27,7 @@ import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.collectors.DataCollector;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
-import org.apache.nifi.android.sitetosite.util.IntentUtils;
+import org.apache.nifi.android.sitetosite.util.SerializationUtils;
 
 import java.io.IOException;
 import java.util.Random;
@@ -40,13 +40,13 @@ public class SiteToSiteRepeating extends WakefulBroadcastReceiver {
 
     @Override
     public void onReceive(final Context context, Intent intent) {
-        DataCollector dataCollector = IntentUtils.getParcelable(intent, DATA_COLLECTOR);
-        SiteToSiteClientConfig siteToSiteClientConfig = IntentUtils.getParcelable(intent, SiteToSiteService.SITE_TO_SITE_CONFIG);
+        DataCollector dataCollector = SerializationUtils.getParcelable(intent, DATA_COLLECTOR);
+        SiteToSiteClientConfig siteToSiteClientConfig = SerializationUtils.getParcelable(intent, SiteToSiteService.SITE_TO_SITE_CONFIG);
         Iterable<DataPacket> dataPackets = dataCollector.getDataPackets();
 
         // Update the pending intent with any state change in data collector
         int requestCode = getRequestCode(intent);
-        final ParcelableTransactionResultCallback transactionResultCallback = IntentUtils.getParcelable(intent, SiteToSiteService.TRANSACTION_RESULT_CALLBACK);
+        final ParcelableTransactionResultCallback transactionResultCallback = SerializationUtils.getParcelable(intent, SiteToSiteService.TRANSACTION_RESULT_CALLBACK);
         Intent repeatingIntent = getIntent(context, dataCollector, siteToSiteClientConfig, requestCode, transactionResultCallback);
         PendingIntent.getBroadcast(context, requestCode, repeatingIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
@@ -66,20 +66,29 @@ public class SiteToSiteRepeating extends WakefulBroadcastReceiver {
                 transactionResultCallback.onException(context, exception, siteToSiteClientConfig);
             }
         }, true);
-        IntentUtils.putParcelable(repeatingIntent, packetIntent, REPEATING_INTENT);
+        SerializationUtils.putParcelable(repeatingIntent, packetIntent, REPEATING_INTENT);
         startWakefulService(context, packetIntent);
     }
 
-    public synchronized static SiteToSiteRepeatableIntent createPendingIntent(Context context, DataCollector dataCollector, SiteToSiteClientConfig siteToSiteClientConfig, ParcelableTransactionResultCallback transactionResultCallback) {
-        Intent intent = getIntent(context, dataCollector, siteToSiteClientConfig, null, transactionResultCallback);
+    /**
+     * Creates a pending intent suitable for use with AlarmManager to schedule repeating site-to-site operations
+     *
+     * @param context the context
+     * @param dataCollector a data collector
+     * @param siteToSiteClientConfig the site to site config
+     * @param parcelableTransactionResultCallback a callback to be invoked whenever a transaction completes
+     * @return a repeatable intent with enough metadata to save and reload it if desired
+     */
+    public synchronized static SiteToSiteRepeatableIntent createPendingIntent(Context context, DataCollector dataCollector, SiteToSiteClientConfig siteToSiteClientConfig, ParcelableTransactionResultCallback parcelableTransactionResultCallback) {
+        Intent intent = getIntent(context, dataCollector, siteToSiteClientConfig, null, parcelableTransactionResultCallback);
         int requestCode = getRequestCode(intent);
         return new SiteToSiteRepeatableIntent(requestCode, intent, PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT));
     }
 
     static void updateIntentConfig(Context context, Intent intent, SiteToSiteClientConfig siteToSiteClientConfig) {
         int requestCode = getRequestCode(intent);
-        DataCollector dataCollector = IntentUtils.getParcelable(intent, DATA_COLLECTOR);
-        ParcelableTransactionResultCallback transactionResultCallback = IntentUtils.getParcelable(intent, SiteToSiteService.TRANSACTION_RESULT_CALLBACK);
+        DataCollector dataCollector = SerializationUtils.getParcelable(intent, DATA_COLLECTOR);
+        ParcelableTransactionResultCallback transactionResultCallback = SerializationUtils.getParcelable(intent, SiteToSiteService.TRANSACTION_RESULT_CALLBACK);
         PendingIntent.getBroadcast(context, requestCode, getIntent(context, dataCollector, siteToSiteClientConfig, requestCode, transactionResultCallback), PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
@@ -97,9 +106,9 @@ public class SiteToSiteRepeating extends WakefulBroadcastReceiver {
         }
 
         intent.putExtra(REQUEST_CODE, requestCode);
-        IntentUtils.putParcelable(dataCollector, intent, DATA_COLLECTOR);
-        IntentUtils.putParcelable(transactionResultCallback, intent, SiteToSiteService.TRANSACTION_RESULT_CALLBACK);
-        IntentUtils.putParcelable(siteToSiteClientConfig, intent, SiteToSiteService.SITE_TO_SITE_CONFIG);
+        SerializationUtils.putParcelable(dataCollector, intent, DATA_COLLECTOR);
+        SerializationUtils.putParcelable(transactionResultCallback, intent, SiteToSiteService.TRANSACTION_RESULT_CALLBACK);
+        SerializationUtils.putParcelable(siteToSiteClientConfig, intent, SiteToSiteService.SITE_TO_SITE_CONFIG);
         return intent;
     }
 

@@ -21,6 +21,9 @@ import org.apache.nifi.android.sitetosite.client.peer.PeerTracker;
 
 import java.io.IOException;
 
+/**
+ * Client class for sending data to NiFi over s2s
+ */
 public class SiteToSiteClient {
     private final PeerTracker peerTracker;
     private final String portIdentifier;
@@ -36,6 +39,12 @@ public class SiteToSiteClient {
         }
     }
 
+    /**
+     * Creates a transaction that will send data to a particular peer
+     *
+     * @return the transaction
+     * @throws IOException if there was a problem creating the transaction with all known peers
+     */
     public Transaction createTransaction() throws IOException {
         return peerTracker.createTransaction(portIdentifier);
     }

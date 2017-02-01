@@ -45,6 +45,9 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 
+/**
+ * Manages connections with the NiFi peers
+ */
 public class PeerConnectionManager {
     public static final String PROTOCOL_VERSION = "x-nifi-site-to-site-protocol-version";
     public static final long THIRTY_SECONDS = TimeUnit.SECONDS.toMillis(30);
@@ -75,6 +78,13 @@ public class PeerConnectionManager {
         }
     }
 
+    /**
+     * Url encodes parameters
+     *
+     * @param queryParameters the parameters
+     * @return a urlencoded parameter string
+     * @throws UnsupportedEncodingException
+     */
     public static String urlEncodeParameters(Map<String, String> queryParameters) throws UnsupportedEncodingException {
         StringBuilder stringBuilder = new StringBuilder();
         for (Map.Entry<String, String> entry : queryParameters.entrySet()) {
@@ -88,22 +98,64 @@ public class PeerConnectionManager {
         return stringBuilder.toString();
     }
 
+    /**
+     * Opens a connection to the given path
+     *
+     * @param path the path
+     * @return an http connection
+     * @throws IOException if there is a problem opening the connection
+     */
     public HttpURLConnection openConnection(String path) throws IOException {
         return openConnection(path, new HashMap<String, String>());
     }
 
+    /**
+     * Opens a connection to the given path
+     *
+     * @param path the path
+     * @param headers headers for the connection
+     * @return an http connection
+     * @throws IOException if there is a problem opening the connection
+     */
     public HttpURLConnection openConnection(String path, Map<String, String> headers) throws IOException {
         return openConnection(path, headers, HttpMethod.GET);
     }
 
+    /**
+     * Opens a connection to the given path
+     *
+     * @param path the path
+     * @param method the http method
+     * @return an http connection
+     * @throws IOException if there is a problem opening the connection
+     */
     public HttpURLConnection openConnection(String path, HttpMethod method) throws IOException {
         return openConnection(path, new HashMap<String, String>(), method);
     }
 
+    /**
+     * Opens a connection to the given path
+     *
+     * @param path the path
+     * @param headers headers for the connection
+     * @param method the http method
+     * @return an http connection
+     * @throws IOException if there is a problem opening the connection
+     */
     public HttpURLConnection openConnection(String path, Map<String, String> headers, HttpMethod method) throws IOException {
         return openConnection(path, headers, new HashMap<String, String>(), method);
     }
 
+    /**
+     * Opens a connection to the given path
+     *
+     * @param path the path
+     * @param headers headers for the connection
+     * @param queryParameters the query parameters
+     * @param method the http method
+     * @return an http connection
+     * @throws IOException if there is a problem opening the connection
+     */
     public HttpURLConnection openConnection(String path, Map<String, String> headers, Map<String, String> queryParameters, HttpMethod method) throws IOException {
         return openConnection(path, headers, queryParameters, method, false);
     }

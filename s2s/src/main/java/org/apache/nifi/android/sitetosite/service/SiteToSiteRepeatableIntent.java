@@ -20,6 +20,9 @@ package org.apache.nifi.android.sitetosite.service;
 import android.app.PendingIntent;
 import android.content.Intent;
 
+/**
+ * PendingIntent wrapper with enough metadata to update the intent later
+ */
 public class SiteToSiteRepeatableIntent {
     private final int requestCode;
     private final Intent intent;
@@ -31,14 +34,29 @@ public class SiteToSiteRepeatableIntent {
         this.pendingIntent = pendingIntent;
     }
 
+    /**
+     * Gets the request code for the pending intent
+     *
+     * @return the request code for the pending intent
+     */
     public int getRequestCode() {
         return requestCode;
     }
 
+    /**
+     * Gets the intent
+     *
+     * @return the intent
+     */
     public Intent getIntent() {
         return intent;
     }
 
+    /**
+     * Gets the pending intent
+     *
+     * @return the pending intent
+     */
     public PendingIntent getPendingIntent() {
         return pendingIntent;
     }

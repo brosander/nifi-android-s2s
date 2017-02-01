@@ -21,6 +21,9 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.SystemClock;
 
+/**
+ * Information useful when determining which peer to send data to
+ */
 public class Peer implements Comparable<Peer>, Parcelable {
     private final String url;
     private int flowFileCount;
@@ -48,10 +51,20 @@ public class Peer implements Comparable<Peer>, Parcelable {
         this.lastFailure = lastFailure;
     }
 
+    /**
+     * Gets the url of the peer
+     *
+     * @return the url of the peeer
+     */
     public String getUrl() {
         return url;
     }
 
+    /**
+     * Gets the current flow file count of the peer
+     *
+     * @return the current flow file count of the peer
+     */
     public int getFlowFileCount() {
         return flowFileCount;
     }
@@ -60,6 +73,9 @@ public class Peer implements Comparable<Peer>, Parcelable {
         this.flowFileCount = flowFileCount;
     }
 
+    /**
+     * Marks that there was a failure communicating with the peer
+     */
     public void markFailure() {
         lastFailure = SystemClock.elapsedRealtime();
     }
@@ -90,6 +106,11 @@ public class Peer implements Comparable<Peer>, Parcelable {
         dest.writeLong(lastFailure);
     }
 
+    /**
+     * Gets the last failure timestamp
+     *
+     * @return the last failure timestamp
+     */
     public long getLastFailure() {
         return lastFailure;
     }

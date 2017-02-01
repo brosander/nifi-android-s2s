@@ -25,8 +25,25 @@ import org.apache.nifi.android.sitetosite.client.TransactionResult;
 
 import java.io.IOException;
 
+/**
+ * Transaction result callback that can operate even after application has exited
+ */
 public interface ParcelableTransactionResultCallback extends Parcelable {
+    /**
+     * Success callback
+     *
+     * @param context the context
+     * @param transactionResult the transaction result
+     * @param siteToSiteClientConfig the (possibly updated) s2s config
+     */
     void onSuccess(Context context, TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig);
 
+    /**
+     * Failure callback
+     *
+     * @param context the context
+     * @param exception the exception
+     * @param siteToSiteClientConfig the (possibly updated) s2s config
+     */
     void onException(Context context, IOException exception, SiteToSiteClientConfig siteToSiteClientConfig);
 }

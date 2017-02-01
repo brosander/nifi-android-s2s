@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.zip.Deflater;
 
+/**
+ * Stream for sending compressed data to NiFi
+ */
 public class CompressionOutputStream extends OutputStream {
     public static final byte[] SYNC_BYTES = new byte[]{'S', 'Y', 'N', 'C'};
 
