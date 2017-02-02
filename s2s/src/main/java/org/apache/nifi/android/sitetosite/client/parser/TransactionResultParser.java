@@ -31,6 +31,10 @@ import java.io.InputStreamReader;
  * Json streaming parser for getting transaction result
  */
 public class TransactionResultParser {
+    public static final String FLOW_FILE_SENT = "flowFileSent";
+    public static final String RESPONSE_CODE = "responseCode";
+    public static final String MESSAGE = "message";
+
     public static TransactionResult parseTransactionResult(InputStream inputStream) throws IOException {
         int flowFilesSent = 0;
         int responseCode = -1;
@@ -41,11 +45,11 @@ public class TransactionResultParser {
             try {
                 while (jsonReader.hasNext()) {
                     String nextName = jsonReader.nextName();
-                    if ("flowFileSent".equals(nextName)) {
+                    if (FLOW_FILE_SENT.equals(nextName)) {
                         flowFilesSent = jsonReader.nextInt();
-                    } else if ("responseCode".equals(nextName)) {
+                    } else if (RESPONSE_CODE.equals(nextName)) {
                         responseCode = jsonReader.nextInt();
-                    } else if ("message".equals(nextName)) {
+                    } else if (MESSAGE.equals(nextName)) {
                         message = jsonReader.nextString();
                     } else {
                         jsonReader.skipValue();

@@ -93,6 +93,7 @@ public class SerializationUtils {
      * @param <T>   the type
      * @return the object
      */
+    @SuppressWarnings("unchecked")
     public static <T extends Parcelable> T unmarshallParcelable(byte[] bytes, Class<T> clazz) {
         if (bytes == null) {
             return null;

@@ -160,6 +160,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
         if (peerStatus != null) {
             siteToSiteClientConfig.setPeerStatus(peerStatus);
         }
+
         return siteToSiteClientConfig;
     }
 

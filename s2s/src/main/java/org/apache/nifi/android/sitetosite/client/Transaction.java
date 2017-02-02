@@ -24,14 +24,12 @@ import org.apache.nifi.android.sitetosite.client.peer.PeerConnectionManager;
 import org.apache.nifi.android.sitetosite.client.protocol.CompressionOutputStream;
 import org.apache.nifi.android.sitetosite.client.protocol.HttpMethod;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
+import org.apache.nifi.android.sitetosite.client.transaction.DataPacketWriter;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
 import org.apache.nifi.android.sitetosite.util.IOUtils;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -43,8 +41,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import java.util.zip.CRC32;
-import java.util.zip.CheckedOutputStream;
 
 /**
  * Transaction for sending data to a NiFi instance
@@ -53,10 +49,14 @@ public class Transaction {
     public static final String CANONICAL_NAME = Transaction.class.getCanonicalName();
 
     public static final String LOCATION_HEADER_NAME = "Location";
+    public static final String EXPECTED_TRANSACTION_URL = "Expected header " + LOCATION_HEADER_NAME + " to contain transaction url.";
     public static final String LOCATION_URI_INTENT_NAME = "x-location-uri-intent";
     public static final String LOCATION_URI_INTENT_VALUE = "transaction-url";
+    public static final String EXPECTED_TRANSACTION_URL_AS_INTENT = "Expected header " + LOCATION_URI_INTENT_NAME + " == " + LOCATION_URI_INTENT_VALUE;
 
     public static final String SERVER_SIDE_TRANSACTION_TTL = "x-nifi-site-to-site-server-transaction-ttl";
+    public static final String UNABLE_TO_PARSE_TTL = "Unable to parse " + SERVER_SIDE_TRANSACTION_TTL + " as int: ";
+    public static final String EXPECTED_TTL = "Expected " + SERVER_SIDE_TRANSACTION_TTL + " header";
 
     public static final String HANDSHAKE_PROPERTY_USE_COMPRESSION = "x-nifi-site-to-site-use-compression";
     public static final String HANDSHAKE_PROPERTY_REQUEST_EXPIRATION = "x-nifi-site-to-site-request-expiration";
@@ -67,13 +67,16 @@ public class Transaction {
     private static final Map<String, String> BEGIN_TRANSACTION_HEADERS = initBeginTransactionHeaders();
     private static final Map<String, String> END_TRANSACTION_HEADERS = initEndTransactionHeaders();
     private static final Pattern NIFI_API_PATTERN = Pattern.compile(Pattern.quote("/nifi-api"));
+    public static final String CONTENT_TYPE = "Content-Type";
+    public static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
+    public static final String ACCEPT = "Accept";
+    public static final String TEXT_PLAIN = "text/plain";
 
     private final Map<String, String> handshakeProperties;
     private final String transactionUrl;
     private final PeerConnectionManager peerConnectionManager;
-    private final CRC32 crc;
-    private final OutputStream sendFlowFilesOutputStream;
     private final HttpURLConnection sendFlowFilesConnection;
+    private final DataPacketWriter dataPacketWriter;
     private final ScheduledFuture<?> ttlExtendFuture;
 
     public Transaction(PeerConnectionManager peerConnectionManager, String portIdentifier, SiteToSiteClientConfig siteToSiteClientConfig, ScheduledExecutorService ttlExtendTaskExecutor) throws IOException {
@@ -90,21 +93,24 @@ public class Transaction {
         if (LOCATION_URI_INTENT_VALUE.equals(createTransactionConnection.getHeaderField(LOCATION_URI_INTENT_NAME))) {
             String ttlString = createTransactionConnection.getHeaderField(SERVER_SIDE_TRANSACTION_TTL);
             if (ttlString == null || ttlString.isEmpty()) {
-                throw new IOException("Expected " + SERVER_SIDE_TRANSACTION_TTL + " header");
+                throw new IOException(EXPECTED_TTL);
             } else {
                 try {
                     ttl = Integer.parseInt(ttlString);
                 } catch (Exception e) {
-                    throw new IOException("Unable to parse " + SERVER_SIDE_TRANSACTION_TTL + " as int: " + ttlString, e);
+                    throw new IOException(UNABLE_TO_PARSE_TTL + ttlString, e);
                 }
             }
-            String path = new URL(createTransactionConnection.getHeaderField(LOCATION_HEADER_NAME)).getPath();
-            transactionUrl = NIFI_API_PATTERN.matcher(path).replaceFirst("");
+            String transactionFullUrl = createTransactionConnection.getHeaderField(LOCATION_HEADER_NAME);
+            if (transactionFullUrl == null) {
+                throw new IOException(EXPECTED_TRANSACTION_URL);
+            }
+            String path = new URL(transactionFullUrl).getPath();
+            this.transactionUrl = NIFI_API_PATTERN.matcher(path).replaceFirst("");
         } else {
-            throw new IOException("Expected header " + LOCATION_URI_INTENT_NAME + " == " + LOCATION_URI_INTENT_VALUE);
+            throw new IOException(EXPECTED_TRANSACTION_URL_AS_INTENT);
         }
 
-        crc = new CRC32();
         Map<String, String> beginTransactionHeaders = new HashMap<>(BEGIN_TRANSACTION_HEADERS);
         beginTransactionHeaders.putAll(handshakeProperties);
         sendFlowFilesConnection = peerConnectionManager.openConnection(transactionUrl + "/flow-files", beginTransactionHeaders, HttpMethod.POST);
@@ -112,8 +118,7 @@ public class Transaction {
         if (siteToSiteClientConfig.isUseCompression()) {
             outputStream = new CompressionOutputStream(outputStream);
         }
-        outputStream = new CheckedOutputStream(outputStream, crc);
-        this.sendFlowFilesOutputStream = outputStream;
+        dataPacketWriter = new DataPacketWriter(outputStream);
         ttlExtendFuture = ttlExtendTaskExecutor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
@@ -122,13 +127,13 @@ public class Transaction {
                     try {
                         int responseCode = ttlExtendConnection.getResponseCode();
                         if (responseCode < 200 || responseCode > 299) {
-                            Log.w(CANONICAL_NAME, "Extending ttl failed for transaction (responseCode " + responseCode + ")" + transactionUrl);
+                            Log.e(CANONICAL_NAME, "Extending ttl failed for transaction (responseCode " + responseCode + ")" + transactionUrl);
                         }
                     } finally {
                         ttlExtendConnection.disconnect();
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    Log.e(CANONICAL_NAME, "Error extending transaction ttl.", e);
                 }
             }
         }, ttl / 2, ttl / 2, TimeUnit.SECONDS);
@@ -166,14 +171,14 @@ public class Transaction {
 
     private static Map<String, String> initEndTransactionHeaders() {
         Map<String, String> result = new HashMap<>();
-        result.put("Content-Type", "application/octet-stream");
+        result.put(CONTENT_TYPE, APPLICATION_OCTET_STREAM);
         return Collections.unmodifiableMap(result);
     }
 
     private static Map<String, String> initBeginTransactionHeaders() {
         Map<String, String> result = new HashMap<>();
-        result.put("Content-Type", "application/octet-stream");
-        result.put("Accept", "text/plain");
+        result.put(CONTENT_TYPE, APPLICATION_OCTET_STREAM);
+        result.put(ACCEPT, TEXT_PLAIN);
         return Collections.unmodifiableMap(result);
     }
 
@@ -184,30 +189,7 @@ public class Transaction {
      * @throws IOException if there is an error sending it
      */
     public void send(DataPacket dataPacket) throws IOException {
-        final DataOutputStream out = new DataOutputStream(sendFlowFilesOutputStream);
-
-        final Map<String, String> attributes = dataPacket.getAttributes();
-        out.writeInt(attributes.size());
-        for (final Map.Entry<String, String> entry : attributes.entrySet()) {
-            writeString(entry.getKey(), out);
-            writeString(entry.getValue(), out);
-        }
-
-        out.writeLong(dataPacket.getSize());
-
-        final InputStream in = dataPacket.getData();
-        byte[] buf = new byte[1024];
-        int read = 0;
-        while ((read = in.read(buf)) != -1) {
-            out.write(buf, 0, read);
-        }
-        out.flush();
-    }
-
-    private void writeString(final String val, final DataOutputStream out) throws IOException {
-        final byte[] bytes = val.getBytes("UTF-8");
-        out.writeInt(bytes.length);
-        out.write(bytes);
+        dataPacketWriter.write(dataPacket);
     }
 
     /**
@@ -216,11 +198,11 @@ public class Transaction {
      * @throws IOException if there is a problem confirming or verifying the checksum
      */
     public void confirm() throws IOException {
+        long calculatedCrc = dataPacketWriter.close();
         int responseCode = sendFlowFilesConnection.getResponseCode();
         if (responseCode != 200 && responseCode != 202) {
             throw new IOException("Got response code " + responseCode);
         }
-        long calculatedCrc = crc.getValue();
         long serverCrc = IOUtils.readInputStreamAndParseAsLong(sendFlowFilesConnection.getInputStream());
         if (calculatedCrc != serverCrc) {
             endTransaction(ResponseCode.BAD_CHECKSUM);
