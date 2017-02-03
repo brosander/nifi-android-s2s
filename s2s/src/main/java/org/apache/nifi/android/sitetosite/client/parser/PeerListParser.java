@@ -34,6 +34,11 @@ import java.util.Map;
  */
 public class PeerListParser {
     public static final String CANONICAL_NAME = PeerListParser.class.getCanonicalName();
+    public static final String PEERS = "peers";
+    public static final String HOSTNAME = "hostname";
+    public static final String PORT = "port";
+    public static final String SECURE = "secure";
+    public static final String FLOW_FILE_COUNT = "flowFileCount";
 
     public static Map<String, Peer> parsePeers(InputStream inputStream) throws IOException {
         Map<String, Peer> result = null;
@@ -42,7 +47,7 @@ public class PeerListParser {
             jsonReader.beginObject();
             try {
                 while (jsonReader.hasNext()) {
-                    if ("peers".equals(jsonReader.nextName())) {
+                    if (PEERS.equals(jsonReader.nextName())) {
                         result = parsePeersArray(jsonReader);
                     } else {
                         jsonReader.skipValue();
@@ -82,13 +87,13 @@ public class PeerListParser {
             Integer flowFileCount = null;
             while (jsonReader.hasNext()) {
                 String name = jsonReader.nextName();
-                if ("hostname".equals(name)) {
+                if (HOSTNAME.equals(name)) {
                     hostname = jsonReader.nextString();
-                } else if ("port".equals(name)) {
+                } else if (PORT.equals(name)) {
                     port = jsonReader.nextInt();
-                } else if ("secure".equals(name)) {
+                } else if (SECURE.equals(name)) {
                     secure = jsonReader.nextBoolean();
-                } else if ("flowFileCount".equals(name)) {
+                } else if (FLOW_FILE_COUNT.equals(name)) {
                     flowFileCount = jsonReader.nextInt();
                 } else {
                     jsonReader.skipValue();

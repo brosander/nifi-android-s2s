@@ -44,20 +44,26 @@ import java.util.concurrent.TimeUnit;
  */
 public class PeerTracker {
     public static final String CANONICAL_NAME = PeerTracker.class.getCanonicalName();
+    public static final String NIFI_API_PATH = "/nifi-api";
+    public static final String SITE_TO_SITE_PATH = "/site-to-site";
+    public static final String SITE_TO_SITE_PEERS_PATH = SITE_TO_SITE_PATH + "/peers";
+    public static final String RECEIVED_RESPONSE_CODE = "Received response code ";
+    public static final String WHEN_OPENING = " when opening ";
+
     private final Set<String> initialPeers;
     private final ScheduledExecutorService ttlExtendTaskExecutor;
     private final SiteToSiteClientConfig siteToSiteClientConfig;
     private final Map<String, PeerConnectionManager> peerConnectionManagerMap;
     private PeerStatus peerStatus;
 
-    public PeerTracker(Set<String> initialPeers, SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
+    public PeerTracker(SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
         this.siteToSiteClientConfig = siteToSiteClientConfig;
         this.initialPeers = new HashSet<>();
         this.peerConnectionManagerMap = new HashMap<>();
         List<Peer> peerList = new ArrayList<>();
-        for (String initialPeer : initialPeers) {
+        for (String initialPeer : siteToSiteClientConfig.getUrls()) {
             URL url = new URL(initialPeer);
-            String peerUrl = url.getProtocol() + "://" + url.getHost() + ":" + url.getPort() + "/nifi-api";
+            String peerUrl = url.getProtocol() + "://" + url.getHost() + ":" + url.getPort() + NIFI_API_PATH;
             this.initialPeers.add(peerUrl);
             peerList.add(new Peer(peerUrl, 0));
         }
@@ -97,11 +103,11 @@ public class PeerTracker {
         long lastPeerUpdate = SystemClock.elapsedRealtime();
         for (Peer peer : peerStatus.getPeers()) {
             try {
-                HttpURLConnection httpURLConnection = getPeerConnectionManager(peer).openConnection("/site-to-site/peers");
+                HttpURLConnection httpURLConnection = getPeerConnectionManager(peer).openConnection(SITE_TO_SITE_PEERS_PATH);
                 try {
                     int responseCode = httpURLConnection.getResponseCode();
                     if (responseCode < 200 || responseCode > 299) {
-                        throw new IOException("Received response code " + responseCode + " when opening " + peer.getUrl());
+                        throw new IOException(RECEIVED_RESPONSE_CODE + responseCode + WHEN_OPENING + peer.getUrl());
                     }
                     Map<String, Peer> newPeerMap = PeerListParser.parsePeers(httpURLConnection.getInputStream());
                     if (newPeerMap != null) {
@@ -170,7 +176,7 @@ public class PeerTracker {
         IOException lastException = null;
         updatePeersIfNecessary();
         for (Peer peer : peerStatus.getPeers()) {
-            HttpURLConnection httpURLConnection = getPeerConnectionManager(peer).openConnection("/site-to-site");
+            HttpURLConnection httpURLConnection = getPeerConnectionManager(peer).openConnection(SITE_TO_SITE_PATH);
             try {
                 String identifier = PortIdentifierParser.getPortIdentifier(httpURLConnection.getInputStream(), portName);
                 if (identifier == null) {

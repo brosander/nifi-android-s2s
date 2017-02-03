@@ -95,6 +95,27 @@ public class Peer implements Comparable<Peer>, Parcelable {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Peer peer = (Peer) o;
+
+        if (flowFileCount != peer.flowFileCount) return false;
+        if (lastFailure != peer.lastFailure) return false;
+        return url != null ? url.equals(peer.url) : peer.url == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = url != null ? url.hashCode() : 0;
+        result = 31 * result + flowFileCount;
+        result = 31 * result + (int) (lastFailure ^ (lastFailure >>> 32));
+        return result;
+    }
+
+    @Override
     public int describeContents() {
         return 0;
     }

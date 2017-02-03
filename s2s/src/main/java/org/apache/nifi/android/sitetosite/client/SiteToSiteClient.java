@@ -29,7 +29,7 @@ public class SiteToSiteClient {
     private final String portIdentifier;
 
     public SiteToSiteClient(SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
-        peerTracker = new PeerTracker(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig);
+        peerTracker = new PeerTracker(siteToSiteClientConfig);
         String portIdentifier = siteToSiteClientConfig.getPortIdentifier();
         if (portIdentifier == null) {
             this.portIdentifier = peerTracker.getPortIdentifier(siteToSiteClientConfig.getPortName());

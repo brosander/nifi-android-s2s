@@ -6,8 +6,8 @@ import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
 import org.apache.nifi.android.sitetosite.util.Charsets;
-import org.apache.nifi.android.sitetosite.util.MockScheduledExecutor;
 import org.apache.nifi.android.sitetosite.util.MockNiFiS2SServer;
+import org.apache.nifi.android.sitetosite.util.MockScheduledExecutor;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -21,6 +21,11 @@ import java.util.concurrent.TimeUnit;
 
 import okhttp3.mockwebserver.RecordedRequest;
 
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_BATCH_COUNT;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_BATCH_DURATION;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_BATCH_SIZE;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_REQUEST_EXPIRATION;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_USE_COMPRESSION;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
@@ -53,11 +58,11 @@ public class TransactionTest {
         List<RecordedRequest> recordedRequests = performTestSuccessfulTransaction(siteToSiteClientConfig);
 
         for (RecordedRequest recordedRequest : recordedRequests) {
-            assertNull(recordedRequest.getHeader(Transaction.HANDSHAKE_PROPERTY_USE_COMPRESSION));
-            assertEquals(Long.toString(siteToSiteClientConfig.getIdleConnectionExpiration(TimeUnit.MILLISECONDS)), recordedRequest.getHeader(Transaction.HANDSHAKE_PROPERTY_REQUEST_EXPIRATION));
-            assertNull(recordedRequest.getHeader(Transaction.HANDSHAKE_PROPERTY_BATCH_COUNT));
-            assertNull(recordedRequest.getHeader(Transaction.HANDSHAKE_PROPERTY_BATCH_SIZE));
-            assertNull(recordedRequest.getHeader(Transaction.HANDSHAKE_PROPERTY_BATCH_DURATION));
+            assertNull(recordedRequest.getHeader(HANDSHAKE_PROPERTY_USE_COMPRESSION));
+            assertEquals(Long.toString(siteToSiteClientConfig.getIdleConnectionExpiration(TimeUnit.MILLISECONDS)), recordedRequest.getHeader(HANDSHAKE_PROPERTY_REQUEST_EXPIRATION));
+            assertNull(recordedRequest.getHeader(HANDSHAKE_PROPERTY_BATCH_COUNT));
+            assertNull(recordedRequest.getHeader(HANDSHAKE_PROPERTY_BATCH_SIZE));
+            assertNull(recordedRequest.getHeader(HANDSHAKE_PROPERTY_BATCH_DURATION));
         }
     }
 
@@ -73,11 +78,11 @@ public class TransactionTest {
         List<RecordedRequest> recordedRequests = performTestSuccessfulTransaction(siteToSiteClientConfig);
 
         for (RecordedRequest recordedRequest : recordedRequests) {
-            assertEquals(Boolean.toString(true), recordedRequest.getHeader(Transaction.HANDSHAKE_PROPERTY_USE_COMPRESSION));
-            assertEquals(Long.toString(siteToSiteClientConfig.getIdleConnectionExpiration(TimeUnit.MILLISECONDS)), recordedRequest.getHeader(Transaction.HANDSHAKE_PROPERTY_REQUEST_EXPIRATION));
-            assertEquals(Integer.toString(siteToSiteClientConfig.getPreferredBatchCount()), recordedRequest.getHeader(Transaction.HANDSHAKE_PROPERTY_BATCH_COUNT));
-            assertEquals(Long.toString(siteToSiteClientConfig.getPreferredBatchSize()), recordedRequest.getHeader(Transaction.HANDSHAKE_PROPERTY_BATCH_SIZE));
-            assertEquals(Long.toString(siteToSiteClientConfig.getPreferredBatchDuration(TimeUnit.MILLISECONDS)), recordedRequest.getHeader(Transaction.HANDSHAKE_PROPERTY_BATCH_DURATION));
+            assertEquals(Boolean.toString(true), recordedRequest.getHeader(HANDSHAKE_PROPERTY_USE_COMPRESSION));
+            assertEquals(Long.toString(siteToSiteClientConfig.getIdleConnectionExpiration(TimeUnit.MILLISECONDS)), recordedRequest.getHeader(HANDSHAKE_PROPERTY_REQUEST_EXPIRATION));
+            assertEquals(Integer.toString(siteToSiteClientConfig.getPreferredBatchCount()), recordedRequest.getHeader(HANDSHAKE_PROPERTY_BATCH_COUNT));
+            assertEquals(Long.toString(siteToSiteClientConfig.getPreferredBatchSize()), recordedRequest.getHeader(HANDSHAKE_PROPERTY_BATCH_SIZE));
+            assertEquals(Long.toString(siteToSiteClientConfig.getPreferredBatchDuration(TimeUnit.MILLISECONDS)), recordedRequest.getHeader(HANDSHAKE_PROPERTY_BATCH_DURATION));
         }
     }
 

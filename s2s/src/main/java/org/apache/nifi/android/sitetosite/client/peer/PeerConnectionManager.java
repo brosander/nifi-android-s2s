@@ -45,11 +45,16 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.ACCEPT;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.AUTHORIZATION;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.CONTENT_TYPE;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.PROTOCOL_VERSION;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.PROXY_AUTHORIZATION;
+
 /**
  * Manages connections with the NiFi peers
  */
 public class PeerConnectionManager {
-    public static final String PROTOCOL_VERSION = "x-nifi-site-to-site-protocol-version";
     public static final long THIRTY_SECONDS = TimeUnit.SECONDS.toMillis(30);
 
     private final Peer peer;
@@ -187,11 +192,11 @@ public class PeerConnectionManager {
         }
 
         if (proxyAuth != null) {
-            httpURLConnection.setRequestProperty("Proxy-Authorization", proxyAuth);
+            httpURLConnection.setRequestProperty(PROXY_AUTHORIZATION, proxyAuth);
         }
 
         if (!isLogon && authorization != null) {
-            httpURLConnection.setRequestProperty("Authorization", authorization);
+            httpURLConnection.setRequestProperty(AUTHORIZATION, authorization);
         }
 
         int timeout = (int) siteToSiteClientConfig.getTimeout(TimeUnit.MILLISECONDS);
@@ -200,8 +205,8 @@ public class PeerConnectionManager {
 
         Map<String, String> finalHeaders = new HashMap<>(headers);
 
-        if (!finalHeaders.containsKey("Accept")) {
-            finalHeaders.put("Accept", "application/json");
+        if (!finalHeaders.containsKey(ACCEPT)) {
+            finalHeaders.put(ACCEPT, "application/json");
         }
 
         if (!finalHeaders.containsKey(PROTOCOL_VERSION)) {
@@ -245,8 +250,8 @@ public class PeerConnectionManager {
 
         String password = siteToSiteClientConfig.getPassword();
         Map<String, String> map = new HashMap<>();
-        map.put("Accept", "text/plain");
-        map.put("Content-Type", "application/x-www-form-urlencoded");
+        map.put(ACCEPT, "text/plain");
+        map.put(CONTENT_TYPE, "application/x-www-form-urlencoded");
         HttpURLConnection httpURLConnection = openConnection("/access/token", map, Collections.<String, String>emptyMap(), HttpMethod.POST, true);
         String payload = null;
         try {

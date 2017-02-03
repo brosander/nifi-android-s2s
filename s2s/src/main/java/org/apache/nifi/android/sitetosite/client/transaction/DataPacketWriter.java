@@ -1,6 +1,7 @@
 package org.apache.nifi.android.sitetosite.client.transaction;
 
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
+import org.apache.nifi.android.sitetosite.util.Charsets;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -44,7 +45,7 @@ public class DataPacketWriter {
     }
 
     private void writeString(final String val) throws IOException {
-        final byte[] bytes = val.getBytes("UTF-8");
+        final byte[] bytes = val.getBytes(Charsets.UTF_8);
         dataOutputStream.writeInt(bytes.length);
         dataOutputStream.write(bytes);
     }

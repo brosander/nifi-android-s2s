@@ -29,6 +29,11 @@ import java.io.InputStreamReader;
  * Json stremaing parser for getting port identifier
  */
 public class PortIdentifierParser {
+    public static final String CONTROLLER = "controller";
+    public static final String INPUT_PORTS = "inputPorts";
+    public static final String ID = "id";
+    public static final String NAME = "name";
+
     public static String getPortIdentifier(InputStream inputStream, String portName) throws IOException {
         JsonReader jsonReader = new JsonReader(new InputStreamReader(inputStream, Charsets.UTF_8));
         try {
@@ -42,7 +47,7 @@ public class PortIdentifierParser {
         jsonReader.beginObject();
         String id = null;
         while (jsonReader.hasNext()) {
-            if (id == null && "controller".equals(jsonReader.nextName())) {
+            if (id == null && CONTROLLER.equals(jsonReader.nextName())) {
                 id = getPortIdentifierFromInputPorts(portName, jsonReader);
             } else {
                 jsonReader.skipValue();
@@ -56,7 +61,7 @@ public class PortIdentifierParser {
         jsonReader.beginObject();
         String id = null;
         while (jsonReader.hasNext()) {
-            if ("inputPorts".equals(jsonReader.nextName())) {
+            if (INPUT_PORTS.equals(jsonReader.nextName())) {
                 jsonReader.beginArray();
                 while (jsonReader.hasNext()) {
                     if (id == null) {
@@ -80,9 +85,9 @@ public class PortIdentifierParser {
         String name = null;
         while (jsonReader.hasNext()) {
             String key = jsonReader.nextName();
-            if (id == null && "id".equals(key)) {
+            if (id == null && ID.equals(key)) {
                 id = jsonReader.nextString();
-            } else if (name == null && "name".equals(key)) {
+            } else if (name == null && NAME.equals(key)) {
                 name = jsonReader.nextString();
             } else {
                 jsonReader.skipValue();

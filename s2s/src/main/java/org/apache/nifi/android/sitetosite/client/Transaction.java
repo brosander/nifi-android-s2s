@@ -42,34 +42,34 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.ACCEPT;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.CONTENT_TYPE;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_BATCH_COUNT;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_BATCH_DURATION;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_BATCH_SIZE;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_REQUEST_EXPIRATION;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_USE_COMPRESSION;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.LOCATION_HEADER_NAME;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.LOCATION_URI_INTENT_NAME;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.LOCATION_URI_INTENT_VALUE;
+import static org.apache.nifi.android.sitetosite.client.protocol.Headers.SERVER_SIDE_TRANSACTION_TTL;
+
 /**
  * Transaction for sending data to a NiFi instance
  */
 public class Transaction {
     public static final String CANONICAL_NAME = Transaction.class.getCanonicalName();
 
-    public static final String LOCATION_HEADER_NAME = "Location";
     public static final String EXPECTED_TRANSACTION_URL = "Expected header " + LOCATION_HEADER_NAME + " to contain transaction url.";
-    public static final String LOCATION_URI_INTENT_NAME = "x-location-uri-intent";
-    public static final String LOCATION_URI_INTENT_VALUE = "transaction-url";
     public static final String EXPECTED_TRANSACTION_URL_AS_INTENT = "Expected header " + LOCATION_URI_INTENT_NAME + " == " + LOCATION_URI_INTENT_VALUE;
 
-    public static final String SERVER_SIDE_TRANSACTION_TTL = "x-nifi-site-to-site-server-transaction-ttl";
     public static final String UNABLE_TO_PARSE_TTL = "Unable to parse " + SERVER_SIDE_TRANSACTION_TTL + " as int: ";
     public static final String EXPECTED_TTL = "Expected " + SERVER_SIDE_TRANSACTION_TTL + " header";
-
-    public static final String HANDSHAKE_PROPERTY_USE_COMPRESSION = "x-nifi-site-to-site-use-compression";
-    public static final String HANDSHAKE_PROPERTY_REQUEST_EXPIRATION = "x-nifi-site-to-site-request-expiration";
-    public static final String HANDSHAKE_PROPERTY_BATCH_COUNT = "x-nifi-site-to-site-batch-count";
-    public static final String HANDSHAKE_PROPERTY_BATCH_SIZE = "x-nifi-site-to-site-batch-size";
-    public static final String HANDSHAKE_PROPERTY_BATCH_DURATION = "x-nifi-site-to-site-batch-duration";
 
     private static final Map<String, String> BEGIN_TRANSACTION_HEADERS = initBeginTransactionHeaders();
     private static final Map<String, String> END_TRANSACTION_HEADERS = initEndTransactionHeaders();
     private static final Pattern NIFI_API_PATTERN = Pattern.compile(Pattern.quote("/nifi-api"));
-    public static final String CONTENT_TYPE = "Content-Type";
     public static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
-    public static final String ACCEPT = "Accept";
     public static final String TEXT_PLAIN = "text/plain";
 
     private final Map<String, String> handshakeProperties;
@@ -143,7 +143,7 @@ public class Transaction {
         Map<String, String> handshakeProperties = new HashMap<>();
 
         if (siteToSiteClientConfig.isUseCompression()) {
-            handshakeProperties.put(HANDSHAKE_PROPERTY_USE_COMPRESSION, "true");
+            handshakeProperties.put(HANDSHAKE_PROPERTY_USE_COMPRESSION, Boolean.TRUE.toString());
         }
 
         long requestExpirationMillis = siteToSiteClientConfig.getIdleConnectionExpiration(TimeUnit.MILLISECONDS);
