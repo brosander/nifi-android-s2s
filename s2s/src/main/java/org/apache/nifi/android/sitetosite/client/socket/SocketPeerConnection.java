@@ -15,16 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.client;
+package org.apache.nifi.android.sitetosite.client.socket;
 
-import java.io.IOException;
+import java.net.Socket;
 
-public interface SiteToSiteClient {
-    /**
-     * Creates a transaction that will send data to a particular peer
-     *
-     * @return the transaction
-     * @throws IOException if there was a problem creating the transaction with all known peers
-     */
-    Transaction createTransaction() throws IOException;
+public class SocketPeerConnection {
+    private final Socket socket;
+    private final int flowFileProtocolVersion;
+    private final Integer flowFileCodecVersion;
+
+    public SocketPeerConnection(Socket socket, int flowFileProtocolVersion, Integer flowFileCodecVersion) {
+        this.socket = socket;
+        this.flowFileProtocolVersion = flowFileProtocolVersion;
+        this.flowFileCodecVersion = flowFileCodecVersion;
+    }
+
+    public Socket getSocket() {
+        return socket;
+    }
+
+    public int getFlowFileProtocolVersion() {
+        return flowFileProtocolVersion;
+    }
+
+    public Integer getFlowFileCodecVersion() {
+        return flowFileCodecVersion;
+    }
 }

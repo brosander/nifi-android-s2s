@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.client.protocol;
+package org.apache.nifi.android.sitetosite.client.peer;
 
-public enum HttpMethod {
-    GET,
-    POST,
-    PUT,
-    DELETE
+import java.io.IOException;
+
+public interface PeerOperation<O, P> {
+    O perform(Peer peer, P connectionManager) throws IOException;
 }

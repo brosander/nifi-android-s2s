@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.client.parser;
+package org.apache.nifi.android.sitetosite.client.http.parser;
 
 import android.util.JsonReader;
 

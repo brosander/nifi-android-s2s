@@ -19,20 +19,25 @@ package org.apache.nifi.android.sitetosite.client.peer;
 
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.os.SystemClock;
+
+import java.net.MalformedURLException;
+import java.net.URL;
 
 /**
  * Information useful when determining which peer to send data to
  */
 public class Peer implements Comparable<Peer>, Parcelable {
-    private final String url;
+    private final String hostname;
+    private final int httpPort;
+    private final int rawPort;
+    private final boolean secure;
     private int flowFileCount;
     private long lastFailure = 0L;
 
     public static final Creator<Peer> CREATOR = new Creator<Peer>() {
         @Override
         public Peer createFromParcel(Parcel source) {
-            return new Peer(source.readString(), source.readInt(), source.readLong());
+            return new Peer(source.readString(), source.readInt(), source.readInt(), Boolean.valueOf(source.readString()), source.readInt(), source.readLong());
         }
 
         @Override
@@ -41,23 +46,27 @@ public class Peer implements Comparable<Peer>, Parcelable {
         }
     };
 
-    public Peer(String url, int flowFileCount) {
-        this(url, flowFileCount, 0L);
+    public Peer(String urlString, int flowFileCount) throws MalformedURLException {
+        URL url = new URL(urlString);
+        this.hostname = url.getHost();
+        this.httpPort = url.getPort();
+        this.rawPort = 0;
+        this.secure = url.getProtocol().equals("https");
+        this.flowFileCount = flowFileCount;
+        this.lastFailure = 0L;
     }
 
-    public Peer(String url, int flowFileCount, long lastFailure) {
-        this.url = url;
+    public Peer(String hostname, int httpPort, int rawPort, boolean secure, int flowFileCount) {
+        this(hostname, httpPort, rawPort, secure, flowFileCount, 0L);
+    }
+
+    public Peer(String hostname, int httpPort, int rawPort, boolean secure, int flowFileCount, long lastFailure) {
+        this.hostname = hostname;
+        this.httpPort = httpPort;
+        this.rawPort = rawPort;
+        this.secure = secure;
         this.flowFileCount = flowFileCount;
         this.lastFailure = lastFailure;
-    }
-
-    /**
-     * Gets the url of the peer
-     *
-     * @return the url of the peeer
-     */
-    public String getUrl() {
-        return url;
     }
 
     /**
@@ -77,42 +86,7 @@ public class Peer implements Comparable<Peer>, Parcelable {
      * Marks that there was a failure communicating with the peer
      */
     public void markFailure() {
-        lastFailure = SystemClock.elapsedRealtime();
-    }
-
-    @Override
-    public int compareTo(Peer o) {
-        if (lastFailure > o.lastFailure) {
-            return 1;
-        } else if (lastFailure < o.lastFailure) {
-            return -1;
-        } else if (flowFileCount < o.flowFileCount) {
-            return -1;
-        } else if (flowFileCount > o.flowFileCount) {
-            return 1;
-        }
-        return url.compareTo(o.url);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        Peer peer = (Peer) o;
-
-        if (flowFileCount != peer.flowFileCount) return false;
-        if (lastFailure != peer.lastFailure) return false;
-        return url != null ? url.equals(peer.url) : peer.url == null;
-
-    }
-
-    @Override
-    public int hashCode() {
-        int result = url != null ? url.hashCode() : 0;
-        result = 31 * result + flowFileCount;
-        result = 31 * result + (int) (lastFailure ^ (lastFailure >>> 32));
-        return result;
+        lastFailure = System.currentTimeMillis();
     }
 
     @Override
@@ -122,7 +96,10 @@ public class Peer implements Comparable<Peer>, Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeString(url);
+        dest.writeString(hostname);
+        dest.writeInt(httpPort);
+        dest.writeInt(rawPort);
+        dest.writeString(Boolean.toString(secure));
         dest.writeInt(flowFileCount);
         dest.writeLong(lastFailure);
     }
@@ -136,12 +113,88 @@ public class Peer implements Comparable<Peer>, Parcelable {
         return lastFailure;
     }
 
+    public String getHostname() {
+        return hostname;
+    }
+
+    public int getHttpPort() {
+        return httpPort;
+    }
+
+    public boolean isSecure() {
+        return secure;
+    }
+
+    public int getRawPort() {
+        return rawPort;
+    }
+
+    public int compareTo(Peer o) {
+        if (lastFailure > o.lastFailure) {
+            return 1;
+        } else if (lastFailure < o.lastFailure) {
+            return -1;
+        } else if (flowFileCount < o.flowFileCount) {
+            return -1;
+        } else if (flowFileCount > o.flowFileCount) {
+            return 1;
+        } else {
+            int hostCompare = hostname.compareTo(o.hostname);
+            if (hostCompare != 0) {
+                return hostCompare;
+            }
+            int httpPortCompare = httpPort - o.httpPort;
+            if (httpPortCompare != 0) {
+                return hostCompare;
+            }
+            int rawPortCompare = rawPort - o.rawPort;
+            if (rawPortCompare != 0) {
+                return rawPortCompare;
+            }
+            return (secure ? 1 : 0) - (o.secure? 1 : 0);
+        }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Peer peer = (Peer) o;
+
+        if (httpPort != peer.httpPort) return false;
+        if (secure != peer.secure) return false;
+        if (rawPort != peer.rawPort) return false;
+        if (flowFileCount != peer.flowFileCount) return false;
+        if (lastFailure != peer.lastFailure) return false;
+        return hostname != null ? hostname.equals(peer.hostname) : peer.hostname == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = hostname != null ? hostname.hashCode() : 0;
+        result = 31 * result + httpPort;
+        result = 31 * result + (secure ? 1 : 0);
+        result = 31 * result + rawPort;
+        result = 31 * result + flowFileCount;
+        result = 31 * result + (int) (lastFailure ^ (lastFailure >>> 32));
+        return result;
+    }
+
     @Override
     public String toString() {
         return "Peer{" +
-                "url='" + url + '\'' +
+                "hostname='" + hostname + '\'' +
+                ", httpPort=" + httpPort +
+                ", secure=" + secure +
+                ", rawPort=" + rawPort +
                 ", flowFileCount=" + flowFileCount +
                 ", lastFailure=" + lastFailure +
                 '}';
+    }
+
+    public PeerKey getPeerKey() {
+        return new PeerKey(this);
     }
 }

@@ -26,7 +26,7 @@ import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import java.io.IOException;
 
 /**
- * Transaction result callback that can operate even after application has exited
+ * HttpTransaction result callback that can operate even after application has exited
  */
 public interface ParcelableTransactionResultCallback extends Parcelable {
     /**

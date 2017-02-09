@@ -20,7 +20,9 @@ package org.apache.nifi.android.sitetosite.client;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import org.apache.nifi.android.sitetosite.client.http.HttpSiteToSiteClient;
 import org.apache.nifi.android.sitetosite.client.peer.PeerStatus;
+import org.apache.nifi.android.sitetosite.client.socket.SocketSiteToSiteClient;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -42,9 +44,36 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
 /**
- * Configuration object for use with the @{@link SiteToSiteClient}
+ * Configuration object for use with the @{@link HttpSiteToSiteClient}
  */
 public class SiteToSiteClientConfig implements Parcelable {
+    public enum ClientType {
+        HTTP(new SiteToSiteClientFactory(){
+            @Override
+            public SiteToSiteClient create(SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
+                return new HttpSiteToSiteClient(siteToSiteClientConfig);
+            }
+        }, "HTTP(S)"),
+        RAW(new SiteToSiteClientFactory(){
+            @Override
+            public SiteToSiteClient create(SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
+                return new SocketSiteToSiteClient(siteToSiteClientConfig);
+            }
+        }, "RAW");
+
+        private final SiteToSiteClientFactory factory;
+        private final String displayName;
+
+
+        ClientType(SiteToSiteClientFactory factory, String displayName) {
+            this.factory = factory;
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
     public static final Creator<SiteToSiteClientConfig> CREATOR = new Creator<SiteToSiteClientConfig>() {
         @Override
         public SiteToSiteClientConfig createFromParcel(Parcel source) {
@@ -74,6 +103,7 @@ public class SiteToSiteClientConfig implements Parcelable {
             result.peerStatus = source.readParcelable(SiteToSiteClientConfig.class.getClassLoader());
             result.username = source.readString();
             result.password = source.readString();
+            result.clientType = ClientType.valueOf(source.readString());
             return result;
         }
 
@@ -106,6 +136,7 @@ public class SiteToSiteClientConfig implements Parcelable {
     private PeerStatus peerStatus;
     private String username;
     private String password;
+    private ClientType clientType = ClientType.HTTP;
 
     public SiteToSiteClientConfig() {
 
@@ -141,6 +172,7 @@ public class SiteToSiteClientConfig implements Parcelable {
         dest.writeParcelable(peerStatus, flags);
         dest.writeString(username);
         dest.writeString(password);
+        dest.writeString(clientType.name());
     }
 
     /**
@@ -541,6 +573,24 @@ public class SiteToSiteClientConfig implements Parcelable {
     }
 
     /**
+     * Gets the client type
+     *
+     * @return the client type
+     */
+    public ClientType getClientType() {
+        return clientType;
+    }
+
+    /**
+     * Sets the client type
+     *
+     * @param clientType the client type
+     */
+    public void setClientType(ClientType clientType) {
+        this.clientType = clientType;
+    }
+
+    /**
      * Sets the idle connection expiration
      *
      * @param idleConnectionExpiration the idle connection expiration
@@ -548,5 +598,9 @@ public class SiteToSiteClientConfig implements Parcelable {
      */
     public void setIdleConnectionExpiration(long idleConnectionExpiration, TimeUnit timeUnit) {
         this.idleConnectionExpirationNanos = timeUnit.toNanos(idleConnectionExpiration);
+    }
+
+    public SiteToSiteClient createClient() throws IOException {
+        return clientType.factory.create(this);
     }
 }

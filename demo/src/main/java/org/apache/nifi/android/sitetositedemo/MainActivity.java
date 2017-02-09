@@ -17,6 +17,7 @@
 
 package org.apache.nifi.android.sitetositedemo;
 
+import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -31,26 +32,26 @@ import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.peer.PeerStatus;
 import org.apache.nifi.android.sitetosite.client.persistence.PendingIntentWrapper;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.client.persistence.TransactionLogEntry;
-import org.apache.nifi.android.sitetositedemo.preference.SiteToSitePreferenceActivity;
-
-import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
-import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeatableIntent;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeating;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteService;
 import org.apache.nifi.android.sitetosite.service.TransactionResultCallback;
 import org.apache.nifi.android.sitetosite.util.Charsets;
+import org.apache.nifi.android.sitetositedemo.preference.SiteToSitePreferenceActivity;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -69,9 +70,16 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
     private SiteToSiteDB siteToSiteDB;
     private long lastTimestamp = 0;
 
+    @SuppressLint("CommitPrefEdits")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        if (preferences.getString("client_type_preference", null) == null) {
+            SharedPreferences.Editor edit = preferences.edit();
+            edit.putString("client_type_preference", SiteToSiteClientConfig.ClientType.HTTP.name());
+            edit.commit();
+        }
         setContentView(R.layout.activity_main);
         siteToSiteDB = new SiteToSiteDB(getApplicationContext());
         TextView sendResults = (TextView) findViewById(R.id.sendResults);
@@ -144,7 +152,16 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         HashSet<String> peerUrls = new HashSet<>(Arrays.asList(preferences.getString("peer_urls_preference", "http://localhost:8080/nifi")));
         String proxyHost = preferences.getString("proxy_host_preference", "");
-        int proxyPort = Integer.parseInt(preferences.getString("proxy_port_preference", "0"));
+        String proxyPortPreference = preferences.getString("proxy_port_preference", "0");
+        if (proxyPortPreference.isEmpty()) {
+            proxyPortPreference = "0";
+        }
+        int proxyPort = 0;
+        try {
+            proxyPort = Integer.parseInt(proxyPortPreference);
+        } catch (Exception e) {
+            Log.w(MainActivity.class.getCanonicalName(), "Unable to parse proxy port", e);
+        }
 
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
         siteToSiteClientConfig.setUrls(peerUrls);
@@ -155,6 +172,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
         siteToSiteClientConfig.setProxyPort(proxyPort);
         siteToSiteClientConfig.setProxyUsername(preferences.getString("proxy_port_username", null));
         siteToSiteClientConfig.setProxyPassword(preferences.getString("proxy_port_password", null));
+        siteToSiteClientConfig.setClientType(SiteToSiteClientConfig.ClientType.valueOf(preferences.getString("client_type_preference", SiteToSiteClientConfig.ClientType.HTTP.name())));
 
         PeerStatus peerStatus = siteToSiteDB.getPeerStatus(peerUrls, proxyHost, proxyPort);
         if (peerStatus != null) {

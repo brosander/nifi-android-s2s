@@ -17,26 +17,20 @@
 
 package org.apache.nifi.android.sitetosite.client.peer;
 
-import android.os.SystemClock;
 import android.util.Log;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
-import org.apache.nifi.android.sitetosite.client.Transaction;
-import org.apache.nifi.android.sitetosite.client.parser.PeerListParser;
-import org.apache.nifi.android.sitetosite.client.parser.PortIdentifierParser;
+import org.apache.nifi.android.sitetosite.client.http.HttpPeerConnector;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -46,51 +40,31 @@ public class PeerTracker {
     public static final String CANONICAL_NAME = PeerTracker.class.getCanonicalName();
     public static final String NIFI_API_PATH = "/nifi-api";
     public static final String SITE_TO_SITE_PATH = "/site-to-site";
-    public static final String SITE_TO_SITE_PEERS_PATH = SITE_TO_SITE_PATH + "/peers";
-    public static final String RECEIVED_RESPONSE_CODE = "Received response code ";
-    public static final String WHEN_OPENING = " when opening ";
 
-    private final Set<String> initialPeers;
-    private final ScheduledExecutorService ttlExtendTaskExecutor;
+    private final Set<PeerKey> initialPeers;
     private final SiteToSiteClientConfig siteToSiteClientConfig;
-    private final Map<String, PeerConnectionManager> peerConnectionManagerMap;
+    private final Map<PeerKey, HttpPeerConnector> peerConnectionManagerMap;
+    private final PeerUpdater peerUpdater;
+    private final Set<Thread> currentlyUpdating = new HashSet<>();
     private PeerStatus peerStatus;
 
-    public PeerTracker(SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
+    public PeerTracker(SiteToSiteClientConfig siteToSiteClientConfig, PeerUpdater peerUpdater) throws IOException {
         this.siteToSiteClientConfig = siteToSiteClientConfig;
         this.initialPeers = new HashSet<>();
         this.peerConnectionManagerMap = new HashMap<>();
         List<Peer> peerList = new ArrayList<>();
         for (String initialPeer : siteToSiteClientConfig.getUrls()) {
-            URL url = new URL(initialPeer);
-            String peerUrl = url.getProtocol() + "://" + url.getHost() + ":" + url.getPort() + NIFI_API_PATH;
-            this.initialPeers.add(peerUrl);
-            peerList.add(new Peer(peerUrl, 0));
+            Peer peer = new Peer(initialPeer, 0);
+            peerList.add(peer);
+            this.initialPeers.add(peer.getPeerKey());
         }
-
+        this.peerUpdater = peerUpdater;
         PeerStatus peerStatus = siteToSiteClientConfig.getPeerStatus();
         if (peerStatus == null) {
             this.peerStatus = new PeerStatus(peerList, 0L);
-            updatePeers();
-        } else if (peerStatus.getLastPeerUpdate() > SystemClock.elapsedRealtime()) {
-            // Device has been restarted
-            this.peerStatus = new PeerStatus(peerStatus.getPeers(), 0L);
-            updatePeers();
         } else {
             this.peerStatus = peerStatus;
         }
-
-        ttlExtendTaskExecutor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
-            private final ThreadFactory defaultFactory = Executors.defaultThreadFactory();
-
-            @Override
-            public Thread newThread(final Runnable r) {
-                final Thread thread = defaultFactory.newThread(r);
-                thread.setName(Thread.currentThread().getName() + " TTLExtend");
-                thread.setDaemon(true);
-                return thread;
-            }
-        });
     }
 
     /**
@@ -99,68 +73,77 @@ public class PeerTracker {
      * @throws IOException if no peer was able to send an updated peer list
      */
     public synchronized void updatePeers() throws IOException {
-        IOException lastException = null;
-        long lastPeerUpdate = SystemClock.elapsedRealtime();
-        for (Peer peer : peerStatus.getPeers()) {
-            try {
-                HttpURLConnection httpURLConnection = getPeerConnectionManager(peer).openConnection(SITE_TO_SITE_PEERS_PATH);
-                try {
-                    int responseCode = httpURLConnection.getResponseCode();
-                    if (responseCode < 200 || responseCode > 299) {
-                        throw new IOException(RECEIVED_RESPONSE_CODE + responseCode + WHEN_OPENING + peer.getUrl());
-                    }
-                    Map<String, Peer> newPeerMap = PeerListParser.parsePeers(httpURLConnection.getInputStream());
-                    if (newPeerMap != null) {
-                        for (Peer oldPeer : peerStatus.getPeers()) {
-                            String url = oldPeer.getUrl();
-                            Peer newPeer = newPeerMap.get(url);
-                            if (newPeer != null) {
-                                oldPeer.setFlowFileCount(newPeer.getFlowFileCount());
-                                newPeerMap.put(url, oldPeer);
-                            } else if (initialPeers.contains(url)) {
-                                newPeerMap.put(url, oldPeer);
-                            }
-                        }
-                        peerStatus = new PeerStatus(newPeerMap.values(), lastPeerUpdate);
-                        siteToSiteClientConfig.setPeerStatus(peerStatus);
-                        return;
-                    }
-                } finally {
-                    httpURLConnection.disconnect();
-                }
-            } catch (IOException e) {
-                Log.d(CANONICAL_NAME, "Unable to get peer list from " + peer.getUrl(), e);
-                lastException = e;
+        long lastPeerUpdate = System.currentTimeMillis();
+        List<Peer> newPeerList = peerUpdater.getPeers();
+        Map<PeerKey, Peer> newPeerMap = new HashMap<>(newPeerList.size());
+        for (Peer peer : newPeerList) {
+            newPeerMap.put(peer.getPeerKey(), peer);
+        }
+        for (Peer oldPeer : peerStatus.getPeers()) {
+            PeerKey oldPeerPeerKey = oldPeer.getPeerKey();
+            Peer newPeer = newPeerMap.get(oldPeerPeerKey);
+            if (newPeer != null) {
+                oldPeer.setFlowFileCount(newPeer.getFlowFileCount());
+                newPeerMap.put(oldPeerPeerKey, oldPeer);
+            } else if (initialPeers.contains(oldPeerPeerKey)) {
+                newPeerMap.put(oldPeerPeerKey, oldPeer);
             }
         }
-        if (lastException != null) {
-            throw lastException;
-        }
+        peerStatus = new PeerStatus(newPeerMap.values(), lastPeerUpdate);
+        siteToSiteClientConfig.setPeerStatus(peerStatus);
     }
 
-    /**
-     * Creates a transaction
-     *
-     * @param portIdentifier the port identifier to send the data to
-     * @return the transaction
-     * @throws IOException if no peer was able to create the transaction
-     */
-    public synchronized Transaction createTransaction(String portIdentifier) throws IOException {
-        IOException lastException = null;
-        updatePeersIfNecessary();
-        for (Peer peer : peerStatus.getPeers()) {
-            String peerUrl = peer.getUrl();
+    public <O> O performHttpOperation(PeerOperation<O, HttpPeerConnector> operation) throws IOException {
+        return performOperation(operation, new PeerConnectorFactory<HttpPeerConnector>(){
+            @Override
+            public HttpPeerConnector create(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
+                return getPeerConnectionManager(peer, siteToSiteClientConfig);
+            }
+        });
+    }
+
+    public <O> O performHttpOperation(Collection<Peer> peers, PeerOperation<O, HttpPeerConnector> operation) throws IOException {
+        return performOperation(peers, operation, new PeerConnectorFactory<HttpPeerConnector>() {
+            @Override
+            public HttpPeerConnector create(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
+                return getPeerConnectionManager(peer, siteToSiteClientConfig);
+            }
+        });
+    }
+
+    public synchronized  <O, P> O performOperation(PeerOperation<O, P> operation, PeerConnectorFactory<P> connectorFactory) throws IOException {
+        Thread thread = Thread.currentThread();
+        if (currentlyUpdating.add(thread)) {
             try {
-                Transaction transaction = new Transaction(getPeerConnectionManager(peer), portIdentifier, siteToSiteClientConfig, ttlExtendTaskExecutor);
+                updatePeersIfNecessary();
+            } finally {
+                currentlyUpdating.remove(thread);
+            }
+        }
+        return performOperation(peerStatus.getPeers(), operation, connectorFactory);
+    }
+
+    public synchronized <O, P> O performOperation(Collection<Peer> peers, PeerOperation<O, P> operation, PeerConnectorFactory<P> connectorFactory) throws IOException {
+        IOException lastException = null;
+        for (Peer peer : peers) {
+            try {
+                P connectionManager = connectorFactory.create(peer, siteToSiteClientConfig);
+                if (connectionManager == null) {
+                    continue;
+                }
+                O result = operation.perform(peer, connectionManager);
                 if (lastException != null) {
                     peerStatus.sort();
                 }
-                return transaction;
+                return result;
             } catch (IOException e) {
                 peer.markFailure();
-                Log.d(CANONICAL_NAME, "Unable to create transaction for port " + portIdentifier + " to peer " + peerUrl);
+                Log.d(CANONICAL_NAME, "Unable to performHttpOperation operation to " + operation, e);
                 lastException = e;
             }
+        }
+        if (lastException == null) {
+            throw new IOException("No peers could be connected to with " + connectorFactory);
         }
         throw lastException;
     }
@@ -172,44 +155,55 @@ public class PeerTracker {
      * @return the port identifier
      * @throws IOException if no peer was able to respond with s2s info
      */
-    public synchronized String getPortIdentifier(String portName) throws IOException {
-        IOException lastException = null;
-        updatePeersIfNecessary();
-        for (Peer peer : peerStatus.getPeers()) {
-            HttpURLConnection httpURLConnection = getPeerConnectionManager(peer).openConnection(SITE_TO_SITE_PATH);
-            try {
-                String identifier = PortIdentifierParser.getPortIdentifier(httpURLConnection.getInputStream(), portName);
+    public String getPortIdentifier(final String portName) throws IOException {
+        return performHttpOperation(new PeerOperation<String, HttpPeerConnector>() {
+            @Override
+            public String perform(Peer peer, HttpPeerConnector httpPeerConnector) throws IOException {
+                String identifier = getSiteToSiteInfo(httpPeerConnector).getIdForInputPortName(portName);
                 if (identifier == null) {
                     throw new IOException("Didn't find port named " + portName);
                 }
-                if (lastException != null) {
-                    peerStatus.sort();
-                }
                 return identifier;
-            } catch (IOException e) {
-                peer.markFailure();
-                Log.d(CANONICAL_NAME, "Unable to get port identifier from " + peer.getUrl());
-                lastException = e;
-            } finally {
-                httpURLConnection.disconnect();
             }
+
+            @Override
+            public String toString() {
+                return "get port identifier for name " + portName;
+            }
+        });
+    }
+
+    public SiteToSiteInfo getSiteToSiteInfo(HttpPeerConnector httpPeerConnector) throws IOException {
+        HttpURLConnection httpURLConnection = httpPeerConnector.openConnection(SITE_TO_SITE_PATH);
+        try {
+            return new SiteToSiteInfo(httpURLConnection.getInputStream());
+        } finally {
+            httpURLConnection.disconnect();
         }
-        throw lastException;
     }
 
     private void updatePeersIfNecessary() throws IOException {
-        long elapsedRealtime = SystemClock.elapsedRealtime();
-        if (elapsedRealtime - peerStatus.getLastPeerUpdate() > siteToSiteClientConfig.getPeerUpdateInterval(TimeUnit.MILLISECONDS)) {
+        long currentTimeMillis = System.currentTimeMillis();
+        if (currentTimeMillis - peerStatus.getLastPeerUpdate() > siteToSiteClientConfig.getPeerUpdateInterval(TimeUnit.MILLISECONDS)) {
             updatePeers();
         }
     }
 
-    private PeerConnectionManager getPeerConnectionManager(Peer peer) {
-        String peerUrl = peer.getUrl();
-        PeerConnectionManager result = peerConnectionManagerMap.get(peerUrl);
+    private HttpPeerConnector getPeerConnectionManager(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig) {
+        int httpPort = peer.getHttpPort();
+        if (httpPort < 1 || httpPort > 65535) {
+            return null;
+        }
+        PeerKey peerKey = peer.getPeerKey();
+        HttpPeerConnector result = peerConnectionManagerMap.get(peerKey);
         if (result == null) {
-            result = new PeerConnectionManager(peer, siteToSiteClientConfig);
-            peerConnectionManagerMap.put(peerUrl, result);
+            StringBuilder peerUrlBuilder = new StringBuilder("http");
+            if (peer.isSecure()) {
+                peerUrlBuilder.append("s");
+            }
+            peerUrlBuilder.append("://").append(peer.getHostname()).append(":").append(httpPort).append(NIFI_API_PATH);
+            result = new HttpPeerConnector(peerUrlBuilder.toString(), siteToSiteClientConfig);
+            peerConnectionManagerMap.put(peerKey, result);
         }
         return result;
     }

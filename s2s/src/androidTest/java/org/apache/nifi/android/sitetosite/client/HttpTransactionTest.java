@@ -1,7 +1,7 @@
 package org.apache.nifi.android.sitetosite.client;
 
-import org.apache.nifi.android.sitetosite.client.peer.Peer;
-import org.apache.nifi.android.sitetosite.client.peer.PeerConnectionManager;
+import org.apache.nifi.android.sitetosite.client.http.HttpTransaction;
+import org.apache.nifi.android.sitetosite.client.http.HttpPeerConnector;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
@@ -21,15 +21,15 @@ import java.util.concurrent.TimeUnit;
 
 import okhttp3.mockwebserver.RecordedRequest;
 
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_BATCH_COUNT;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_BATCH_DURATION;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_BATCH_SIZE;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_REQUEST_EXPIRATION;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.HANDSHAKE_PROPERTY_USE_COMPRESSION;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.HANDSHAKE_PROPERTY_BATCH_COUNT;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.HANDSHAKE_PROPERTY_BATCH_DURATION;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.HANDSHAKE_PROPERTY_BATCH_SIZE;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.HANDSHAKE_PROPERTY_REQUEST_EXPIRATION;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.HANDSHAKE_PROPERTY_USE_COMPRESSION;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-public class TransactionTest {
+public class HttpTransactionTest {
     @Rule
     public ExpectedException expectedException = ExpectedException.none();
     String portIdentifier;
@@ -89,33 +89,33 @@ public class TransactionTest {
     @Test
     public void testNoTransactionUrlIntent() throws Exception {
         expectedException.expect(IOException.class);
-        expectedException.expectMessage(Transaction.EXPECTED_TRANSACTION_URL_AS_INTENT);
+        expectedException.expectMessage(HttpTransaction.EXPECTED_TRANSACTION_URL_AS_INTENT);
 
         mockNiFiS2SServer.enqueuCreateTransaction(portIdentifier, null, 30);
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-        new Transaction(new PeerConnectionManager(new Peer(mockNiFiS2SServer.getNifiApiUrl(), 0), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
+        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
         mockNiFiS2SServer.verifyAssertions();
     }
 
     @Test
     public void testExpectedTransactionUrl() throws Exception {
         expectedException.expect(IOException.class);
-        expectedException.expectMessage(Transaction.EXPECTED_TRANSACTION_URL);
+        expectedException.expectMessage(HttpTransaction.EXPECTED_TRANSACTION_URL);
 
         mockNiFiS2SServer.enqueuCreateTransaction(portIdentifier, transactionIdentifier, 30, false);
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-        new Transaction(new PeerConnectionManager(new Peer(mockNiFiS2SServer.getNifiApiUrl(), 0), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
+        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
         mockNiFiS2SServer.verifyAssertions();
     }
 
     @Test
     public void testExpectedTtl() throws Exception {
         expectedException.expect(IOException.class);
-        expectedException.expectMessage(Transaction.EXPECTED_TTL);
+        expectedException.expectMessage(HttpTransaction.EXPECTED_TTL);
 
         mockNiFiS2SServer.enqueuCreateTransaction(portIdentifier, transactionIdentifier, null);
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-        new Transaction(new PeerConnectionManager(new Peer(mockNiFiS2SServer.getNifiApiUrl(), 0), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
+        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
         mockNiFiS2SServer.verifyAssertions();
     }
 
@@ -123,11 +123,11 @@ public class TransactionTest {
     public void testUnparseableTtl() throws Exception {
         expectedException.expect(IOException.class);
         String ttl = "abcd";
-        expectedException.expectMessage(Transaction.UNABLE_TO_PARSE_TTL + ttl);
+        expectedException.expectMessage(HttpTransaction.UNABLE_TO_PARSE_TTL + ttl);
 
         mockNiFiS2SServer.enqueuCreateTransaction(portIdentifier, transactionIdentifier, ttl);
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-        new Transaction(new PeerConnectionManager(new Peer(mockNiFiS2SServer.getNifiApiUrl(), 0), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
+        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
         mockNiFiS2SServer.verifyAssertions();
     }
 
@@ -140,14 +140,14 @@ public class TransactionTest {
         mockNiFiS2SServer.enqueuDataPackets(transactionPath, dataPackets, siteToSiteClientConfig);
 
         mockNiFiS2SServer.enqueueTransactionComplete(transactionPath, dataPackets.size(), ResponseCode.CONFIRM_TRANSACTION, ResponseCode.CONFIRM_TRANSACTION);
-        Transaction transaction = new Transaction(new PeerConnectionManager(new Peer(mockNiFiS2SServer.getNifiApiUrl(), 0), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
+        HttpTransaction httpTransaction = new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
         scheduledThreadPoolExecutor.getTtlExtender(15).run();
 
         for (DataPacket dataPacket : dataPackets) {
-            transaction.send(dataPacket);
+            httpTransaction.send(dataPacket);
         }
-        transaction.confirm();
-        transaction.complete();
+        httpTransaction.confirm();
+        httpTransaction.complete();
         return mockNiFiS2SServer.verifyAssertions();
     }
 }

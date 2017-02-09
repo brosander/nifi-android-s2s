@@ -19,12 +19,6 @@ package org.apache.nifi.android.sitetosite.client;
 
 import java.io.IOException;
 
-public interface SiteToSiteClient {
-    /**
-     * Creates a transaction that will send data to a particular peer
-     *
-     * @return the transaction
-     * @throws IOException if there was a problem creating the transaction with all known peers
-     */
-    Transaction createTransaction() throws IOException;
+public interface SiteToSiteClientFactory {
+    SiteToSiteClient create(SiteToSiteClientConfig siteToSiteClientConfig) throws IOException;
 }

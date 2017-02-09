@@ -24,6 +24,13 @@
         android:title="Peer URL(s)"
         android:key="peer_urls_preference"
         android:summary="Comma separated peer urls" />
+    <ListPreference
+        android:defaultValue="HTTP"
+        android:title="Client type"
+        android:entries="@array/client_types"
+        android:entryValues="@array/client_types_values"
+        android:key="client_type_preference"
+        android:summary="Communication protocol to use" />
     <EditTextPreference
         android:selectAllOnFocus="true"
         android:singleLine="true"

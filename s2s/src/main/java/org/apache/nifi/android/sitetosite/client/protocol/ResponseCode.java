@@ -111,7 +111,7 @@ public enum ResponseCode {
         out.flush();
     }
 
-    static ResponseCode readCode(final InputStream in) throws IOException, ProtocolException {
+    public static ResponseCode readCode(final InputStream in) throws IOException, ProtocolException {
         final int byte1 = in.read();
         if (byte1 < 0) {
             throw new EOFException();

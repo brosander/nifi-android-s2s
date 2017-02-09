@@ -26,8 +26,10 @@ import android.support.v4.content.WakefulBroadcastReceiver;
 import android.util.Log;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
-import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.Transaction;
+import org.apache.nifi.android.sitetosite.client.http.HttpSiteToSiteClient;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.http.HttpTransaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
 import org.apache.nifi.android.sitetosite.util.SerializationUtils;
@@ -66,7 +68,7 @@ public class SiteToSiteService extends IntentService {
                 ResultReceiver transactionResultCallback = intent.getExtras().getParcelable(TRANSACTION_RESULT_CALLBACK);
                 SiteToSiteClientConfig siteToSiteClientConfig = SerializationUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
                 try {
-                    SiteToSiteClient client = new SiteToSiteClient(siteToSiteClientConfig);
+                    SiteToSiteClient client = siteToSiteClientConfig.createClient();
                     Transaction transaction = client.createTransaction();
                     for (DataPacket packet : packets) {
                         transaction.send(packet);

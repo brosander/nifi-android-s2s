@@ -1,14 +1,14 @@
 package org.apache.nifi.android.sitetosite.util;
 
+import org.apache.nifi.android.sitetosite.client.http.HttpTransaction;
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
-import org.apache.nifi.android.sitetosite.client.Transaction;
-import org.apache.nifi.android.sitetosite.client.parser.PeerListParser;
-import org.apache.nifi.android.sitetosite.client.parser.PortIdentifierParser;
-import org.apache.nifi.android.sitetosite.client.parser.TransactionResultParser;
+import org.apache.nifi.android.sitetosite.client.http.parser.PeerListParser;
+import org.apache.nifi.android.sitetosite.client.http.parser.TransactionResultParser;
 import org.apache.nifi.android.sitetosite.client.peer.Peer;
 import org.apache.nifi.android.sitetosite.client.peer.PeerTracker;
+import org.apache.nifi.android.sitetosite.client.peer.SiteToSiteInfo;
 import org.apache.nifi.android.sitetosite.client.protocol.CompressionOutputStream;
-import org.apache.nifi.android.sitetosite.client.protocol.HttpMethod;
+import org.apache.nifi.android.sitetosite.client.http.HttpMethod;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
 import org.apache.nifi.android.sitetosite.client.transaction.DataPacketWriter;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
@@ -19,7 +19,6 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -29,12 +28,13 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.ACCEPT;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.CONTENT_TYPE;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.LOCATION_HEADER_NAME;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.LOCATION_URI_INTENT_NAME;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.LOCATION_URI_INTENT_VALUE;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.SERVER_SIDE_TRANSACTION_TTL;
+import static org.apache.nifi.android.sitetosite.client.http.HttpSiteToSiteClient.SITE_TO_SITE_PEERS_PATH;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.ACCEPT;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.CONTENT_TYPE;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.LOCATION_HEADER_NAME;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.LOCATION_URI_INTENT_NAME;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.LOCATION_URI_INTENT_VALUE;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.SERVER_SIDE_TRANSACTION_TTL;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -126,8 +126,8 @@ public class MockNiFiS2SServer {
                 assertEquals(transactionPath + "/flow-files", recordedRequest.getPath());
                 assertEquals(HttpMethod.POST.name(), recordedRequest.getMethod());
                 assertArrayEquals(byteArrayOutputStream.toByteArray(), recordedRequest.getBody().readByteArray());
-                assertEquals(Transaction.APPLICATION_OCTET_STREAM, recordedRequest.getHeader(CONTENT_TYPE));
-                assertEquals(Transaction.TEXT_PLAIN, recordedRequest.getHeader(ACCEPT));
+                assertEquals(HttpTransaction.APPLICATION_OCTET_STREAM, recordedRequest.getHeader(CONTENT_TYPE));
+                assertEquals(HttpTransaction.TEXT_PLAIN, recordedRequest.getHeader(ACCEPT));
                 return recordedRequest;
             }
         });
@@ -145,7 +145,7 @@ public class MockNiFiS2SServer {
                 RecordedRequest recordedRequest = mockWebServer.takeRequest();
                 assertEquals(transactionPath + "?responseCode=" + requestResponseCode.getCode(), recordedRequest.getPath());
                 assertEquals(HttpMethod.DELETE.name(), recordedRequest.getMethod());
-                assertEquals(Transaction.APPLICATION_OCTET_STREAM, recordedRequest.getHeader(CONTENT_TYPE));
+                assertEquals(HttpTransaction.APPLICATION_OCTET_STREAM, recordedRequest.getHeader(CONTENT_TYPE));
                 return recordedRequest;
             }
         });
@@ -154,8 +154,7 @@ public class MockNiFiS2SServer {
     public void enqueueSiteToSitePeers(Collection<Peer> peers) throws JSONException, MalformedURLException {
         List<JSONObject> peerJsonObjects = new ArrayList<>(peers.size());
         for (Peer peer : peers) {
-            URL url = new URL(peer.getUrl());
-            peerJsonObjects.add(getPeerJSONObject(url.getProtocol().equals("https"), url.getHost(), url.getPort(), peer.getFlowFileCount()));
+            peerJsonObjects.add(getPeerJSONObject(peer.isSecure(), peer.getHostname(), peer.getHttpPort(), peer.getFlowFileCount()));
         }
         mockWebServer.enqueue(new MockResponse().setBody(getPeersJson(peerJsonObjects)));
 
@@ -163,7 +162,7 @@ public class MockNiFiS2SServer {
             @Override
             public RecordedRequest check() throws Exception {
                 RecordedRequest recordedRequest = mockWebServer.takeRequest();
-                assertEquals(PeerTracker.NIFI_API_PATH + PeerTracker.SITE_TO_SITE_PEERS_PATH, recordedRequest.getPath());
+                assertEquals(PeerTracker.NIFI_API_PATH + SITE_TO_SITE_PEERS_PATH, recordedRequest.getPath());
                 return recordedRequest;
             }
         });
@@ -213,12 +212,12 @@ public class MockNiFiS2SServer {
         JSONArray inputPorts = new JSONArray();
         for (Map.Entry<String, String> entry : nameToIdMap.entrySet()) {
             JSONObject inputPortObject = new JSONObject();
-            inputPortObject.put(PortIdentifierParser.NAME, entry.getKey());
-            inputPortObject.put(PortIdentifierParser.ID, entry.getValue());
+            inputPortObject.put(SiteToSiteInfo.NAME, entry.getKey());
+            inputPortObject.put(SiteToSiteInfo.ID, entry.getValue());
             inputPorts.put(inputPortObject);
         }
-        controllerObject.put(PortIdentifierParser.INPUT_PORTS, inputPorts);
-        topLevelObject.put(PortIdentifierParser.CONTROLLER, controllerObject);
+        controllerObject.put(SiteToSiteInfo.INPUT_PORTS, inputPorts);
+        topLevelObject.put(SiteToSiteInfo.CONTROLLER, controllerObject);
         return topLevelObject;
     }
 

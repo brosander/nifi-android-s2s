@@ -15,13 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.client.peer;
+package org.apache.nifi.android.sitetosite.client.http;
 
-import android.os.SystemClock;
 import android.util.Base64;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
-import org.apache.nifi.android.sitetosite.client.protocol.HttpMethod;
 import org.apache.nifi.android.sitetosite.util.Charsets;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -45,19 +43,19 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.ACCEPT;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.AUTHORIZATION;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.CONTENT_TYPE;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.PROTOCOL_VERSION;
-import static org.apache.nifi.android.sitetosite.client.protocol.Headers.PROXY_AUTHORIZATION;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.ACCEPT;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.AUTHORIZATION;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.CONTENT_TYPE;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.PROTOCOL_VERSION;
+import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.PROXY_AUTHORIZATION;
 
 /**
  * Manages connections with the NiFi peers
  */
-public class PeerConnectionManager {
+public class HttpPeerConnector {
     public static final long THIRTY_SECONDS = TimeUnit.SECONDS.toMillis(30);
 
-    private final Peer peer;
+    private final String peerUrl;
     private final SiteToSiteClientConfig siteToSiteClientConfig;
     private final SSLSocketFactory socketFactory;
     private final Proxy proxy;
@@ -65,8 +63,8 @@ public class PeerConnectionManager {
     private String authorization;
     private long authorizationExpiration;
 
-    public PeerConnectionManager(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig) {
-        this.peer = peer;
+    public HttpPeerConnector(String peerUrl, SiteToSiteClientConfig siteToSiteClientConfig) {
+        this.peerUrl = peerUrl;
         this.siteToSiteClientConfig = siteToSiteClientConfig;
         SSLContext sslContext = siteToSiteClientConfig.getSslContext();
         if (sslContext != null) {
@@ -169,7 +167,7 @@ public class PeerConnectionManager {
         if (!isLogon) {
             loginIfNecessary();
         }
-        String urlString = peer.getUrl() + path;
+        String urlString = peerUrl + path;
         if (socketFactory != null && !urlString.startsWith("https://")) {
             throw new IOException("When keystore and/or truststore set, must use https");
         }
@@ -237,7 +235,7 @@ public class PeerConnectionManager {
     }
 
     private void loginIfNecessary() throws IOException {
-        long startTime = SystemClock.elapsedRealtime();
+        long startTime = System.currentTimeMillis();
         if (startTime < authorizationExpiration) {
             return;
         }

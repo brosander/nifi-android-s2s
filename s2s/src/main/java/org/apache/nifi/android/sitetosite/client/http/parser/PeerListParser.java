@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.client.parser;
+package org.apache.nifi.android.sitetosite.client.http.parser;
 
 import android.util.JsonReader;
 import android.util.Log;
@@ -26,8 +26,9 @@ import org.apache.nifi.android.sitetosite.util.Charsets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Json streaming parser for peer list
@@ -40,8 +41,8 @@ public class PeerListParser {
     public static final String SECURE = "secure";
     public static final String FLOW_FILE_COUNT = "flowFileCount";
 
-    public static Map<String, Peer> parsePeers(InputStream inputStream) throws IOException {
-        Map<String, Peer> result = null;
+    public static List<Peer> parsePeers(InputStream inputStream) throws IOException {
+        List<Peer> result = null;
         JsonReader jsonReader = new JsonReader(new InputStreamReader(inputStream, Charsets.UTF_8));
         try {
             jsonReader.beginObject();
@@ -59,17 +60,17 @@ public class PeerListParser {
         } finally {
             jsonReader.close();
         }
-        return result;
+        return result == null ? Collections.<Peer>emptyList() : result;
     }
 
-    private static Map<String, Peer> parsePeersArray(JsonReader jsonReader) throws IOException {
-        Map<String, Peer> result = new HashMap<>();
+    private static List<Peer> parsePeersArray(JsonReader jsonReader) throws IOException {
+        List<Peer> result = new ArrayList<>();
         jsonReader.beginArray();
         try {
             while (jsonReader.hasNext()) {
                 Peer peer = parsePeer(jsonReader);
                 if (peer != null) {
-                    result.put(peer.getUrl(), peer);
+                    result.add(peer);
                 }
             }
         } finally {
@@ -108,16 +109,7 @@ public class PeerListParser {
             } else if (flowFileCount == null) {
                 Log.w(CANONICAL_NAME, "Null flowFileCount " + peerToString(hostname, port, secure, flowFileCount));
             } else {
-                StringBuilder stringBuilder = new StringBuilder("http");
-                if (secure) {
-                    stringBuilder.append("s");
-                }
-                stringBuilder.append("://");
-                stringBuilder.append(hostname);
-                stringBuilder.append(":");
-                stringBuilder.append(port);
-                stringBuilder.append("/nifi-api");
-                return new Peer(stringBuilder.toString(), flowFileCount);
+                return new Peer(hostname, port, 0, secure, flowFileCount);
             }
         } finally {
             jsonReader.endObject();

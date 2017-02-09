@@ -12,12 +12,20 @@ import java.util.zip.CRC32;
 import java.util.zip.CheckedOutputStream;
 
 public class DataPacketWriter {
-    private final DataOutputStream dataOutputStream;
+    protected final DataOutputStream dataOutputStream;
     private final CRC32 crc;
+    private final boolean closeStream;
+    private boolean closed;
 
     public DataPacketWriter(OutputStream outputStream) {
+        this(outputStream, true);
+    }
+
+    public DataPacketWriter(OutputStream outputStream, boolean closeStream) {
         crc = new CRC32();
         dataOutputStream = new DataOutputStream(new CheckedOutputStream(outputStream, crc));
+        this.closeStream = closeStream;
+        closed = false;
     }
 
     /**
@@ -27,6 +35,9 @@ public class DataPacketWriter {
      * @throws IOException if there is an error sending it
      */
     public void write(DataPacket dataPacket) throws IOException {
+        if (closed) {
+            throw new IOException("Tried to write after closing");
+        }
         final Map<String, String> attributes = dataPacket.getAttributes();
         dataOutputStream.writeInt(attributes.size());
         for (final Map.Entry<String, String> entry : attributes.entrySet()) {
@@ -57,7 +68,12 @@ public class DataPacketWriter {
      * @throws IOException if there was an error
      */
     public long close() throws IOException {
-        dataOutputStream.close();
+        closed = true;
+        if (closeStream) {
+            dataOutputStream.close();
+        } else {
+            dataOutputStream.flush();
+        }
         return crc.getValue();
     }
 }

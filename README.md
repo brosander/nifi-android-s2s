@@ -1,5 +1,5 @@
 # Apache NiFi Site-to-Site Android library
-#### A small (currently ~= 100k), easy-to-use Android library for sending data to NiFi via the HTTP(S) Site-to-Site protocol with only Android SDK dependencies
+#### A small (currently ~= 125k), easy-to-use Android library for sending data to NiFi via the Site-to-Site protocol with only Android SDK dependencies
 
 ### Building
 ```shell
@@ -33,7 +33,7 @@ SiteToSiteService.sendDataPacket(context, dataPacket, siteToSiteClientConfig, ne
 
   @Override
   public void onSuccess(TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
-    // Handle successful transaction
+    // Handle successful httpTransaction
   }
 
   @Override

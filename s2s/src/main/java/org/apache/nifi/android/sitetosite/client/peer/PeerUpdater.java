@@ -15,16 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.client;
+package org.apache.nifi.android.sitetosite.client.peer;
 
 import java.io.IOException;
+import java.util.List;
 
-public interface SiteToSiteClient {
-    /**
-     * Creates a transaction that will send data to a particular peer
-     *
-     * @return the transaction
-     * @throws IOException if there was a problem creating the transaction with all known peers
-     */
-    Transaction createTransaction() throws IOException;
+public interface PeerUpdater {
+    List<Peer> getPeers() throws IOException;
 }
