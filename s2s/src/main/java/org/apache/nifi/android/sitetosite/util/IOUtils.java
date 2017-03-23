@@ -17,8 +17,10 @@
 
 package org.apache.nifi.android.sitetosite.util;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 public class IOUtils {
     private static final int MAX_LONG_LEN = String.valueOf(Long.MAX_VALUE).length();
@@ -38,5 +40,19 @@ public class IOUtils {
             offset += read;
         }
         return Long.valueOf(new String(buf, 0, offset));
+    }
+
+    public static byte[] readInputStream(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        copy(inputStream, outputStream);
+        return outputStream.toByteArray();
+    }
+
+    public static void copy(InputStream inputStream, OutputStream outputStream) throws IOException {
+        byte[] buf = new byte[1024];
+        int read;
+        while ((read = inputStream.read(buf)) >= 0) {
+            outputStream.write(buf, 0, read);
+        }
     }
 }

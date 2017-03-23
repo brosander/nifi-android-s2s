@@ -45,9 +45,9 @@ public class SiteToSiteDB {
     public static final String TRANSACTION_LOG_ENTRY_SAVED = SiteToSiteDB.class.getCanonicalName() + ".save(transactionLogEntry)";
     public static final String ID_COLUMN = "ID";
     public static final String CONTENT_COLUMN = "CONTENT";
+    public static final String CREATED_COLUMN = "CREATED";
 
     public static final String S2S_TABLE_NAME = "APACHE_NIFI_SITE_TO_SITE_LOG";
-    public static final String S2S_CREATED_COLUMN = "CREATED";
     public static final String S2S_TRANSACTION_RESULT_COLUMN = "TRANSACTION_RESULT";
     public static final String S2S_IO_EXCEPTION_COLUMN = "IO_EXCEPTION";
 
@@ -60,6 +60,12 @@ public class SiteToSiteDB {
     public static final String PEER_STATUS_PROXY_PORT_COLUMN = "PROXY_PORT";
     public static final String PEER_STATUS_WHERE_CLAUSE = PEER_STATUS_URLS_COLUMN + " = ? AND " + PEER_STATUS_PROXY_HOST_COLUMN + " = ? AND " + PEER_STATUS_PROXY_PORT_COLUMN + " = ?";
 
+    public static final String DATA_PACKET_QUEUE_TABLE_NAME = "DATA_PACKET_QUEUE_TABLE_NAME";
+    public static final String DATA_PACKET_QEUE_PRIORITY_COLUMN = "PRIORITY";
+    public static final String DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN = "ATTRIBUTES";
+    public static final String DATA_PACKET_QUEUE_TRANSACTION_COLUMN = "TRANSACTION";
+    public static final String DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN = "EXPIRATION_MILLIS";
+
     public static final int VERSION = 1;
 
     private final Context context;
@@ -70,13 +76,32 @@ public class SiteToSiteDB {
         sqLiteOpenHelper = new SQLiteOpenHelper(context, SiteToSiteDB.class.getSimpleName() + ".db", null, VERSION) {
             @Override
             public void onCreate(SQLiteDatabase db) {
-                db.execSQL("CREATE TABLE " + S2S_TABLE_NAME + " (" + ID_COLUMN + " INTEGER PRIMARY KEY, " + S2S_CREATED_COLUMN + " INTEGER, " + S2S_TRANSACTION_RESULT_COLUMN + " BLOB, " + S2S_IO_EXCEPTION_COLUMN + " BLOB)");
-                db.execSQL("CREATE TABLE " + PENDING_INTENT_TABLE_NAME + " (" + ID_COLUMN + " INTEGER PRIMARY KEY, " + PENDING_INTENT_REQUEST_CODE + " INTEGER, " + CONTENT_COLUMN + " BLOB)");
+                db.execSQL("CREATE TABLE " + S2S_TABLE_NAME + " (" +
+                        ID_COLUMN + " INTEGER PRIMARY KEY, " +
+                        CREATED_COLUMN + " INTEGER, " +
+                        S2S_TRANSACTION_RESULT_COLUMN + " BLOB, " +
+                        S2S_IO_EXCEPTION_COLUMN + " BLOB)");
+                db.execSQL("CREATE TABLE " + PENDING_INTENT_TABLE_NAME + " (" +
+                        ID_COLUMN + " INTEGER PRIMARY KEY, " +
+                        PENDING_INTENT_REQUEST_CODE + " INTEGER, " +
+                        CONTENT_COLUMN + " BLOB)");
                 db.execSQL("CREATE TABLE " + PEER_STATUSES_TABLE_NAME +" (" +
                         PEER_STATUS_URLS_COLUMN + " TEXT, " +
                         PEER_STATUS_PROXY_HOST_COLUMN + " TEXT, " +
                         PEER_STATUS_PROXY_PORT_COLUMN + " INTEGER, " +
-                        CONTENT_COLUMN + " BLOB, PRIMARY KEY(" + PEER_STATUS_URLS_COLUMN + ", " + PEER_STATUS_PROXY_HOST_COLUMN + ", " + PEER_STATUS_PROXY_PORT_COLUMN + "))");
+                        CONTENT_COLUMN + " BLOB, " +
+                        "PRIMARY KEY(" + PEER_STATUS_URLS_COLUMN + ", " + PEER_STATUS_PROXY_HOST_COLUMN + ", " + PEER_STATUS_PROXY_PORT_COLUMN + "))");
+                db.execSQL("CREATE TABLE " + DATA_PACKET_QUEUE_TABLE_NAME + "(" +
+                        ID_COLUMN + " INTEGER PRIMARY KEY, " +
+                        CREATED_COLUMN + " INTEGER, " +
+                        DATA_PACKET_QEUE_PRIORITY_COLUMN + " INTEGER, " +
+                        DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN + " BLOB, " +
+                        CONTENT_COLUMN + " BLOB, " +
+                        DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " TEXT, " +
+                        DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + " INTEGER)");
+                db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_" + DATA_PACKET_QUEUE_TRANSACTION_COLUMN + "_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QUEUE_TRANSACTION_COLUMN + ")");
+                db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_" + DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + "_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + ")");
+                db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_sort_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QEUE_PRIORITY_COLUMN + ", " + CREATED_COLUMN + ")");
             }
 
             @Override
@@ -95,7 +120,7 @@ public class SiteToSiteDB {
         SQLiteDatabase writableDatabase = sqLiteOpenHelper.getWritableDatabase();
         try {
             ContentValues values = new ContentValues();
-            values.put(S2S_CREATED_COLUMN, transactionLogEntry.getCreated().getTime());
+            values.put(CREATED_COLUMN, transactionLogEntry.getCreated().getTime());
             values.put(S2S_TRANSACTION_RESULT_COLUMN, SerializationUtils.marshallParcelable(transactionLogEntry.getTransactionResult()));
             values.put(S2S_IO_EXCEPTION_COLUMN, SerializationUtils.marshallSerializable(transactionLogEntry.getIoException()));
             transactionLogEntry.setId(writableDatabase.insert(S2S_TABLE_NAME, null, values));
@@ -115,10 +140,10 @@ public class SiteToSiteDB {
         List<TransactionLogEntry> transactionLogEntries = new ArrayList<>();
         SQLiteDatabase readableDatabase = sqLiteOpenHelper.getReadableDatabase();
         try {
-            Cursor cursor = readableDatabase.query(false, S2S_TABLE_NAME, new String[]{ID_COLUMN, S2S_CREATED_COLUMN, S2S_TRANSACTION_RESULT_COLUMN, S2S_IO_EXCEPTION_COLUMN}, S2S_CREATED_COLUMN + " > ?", new String[]{Long.toString(lastTimestamp)}, null, null, "CREATED", null);
+            Cursor cursor = readableDatabase.query(false, S2S_TABLE_NAME, new String[]{ID_COLUMN, CREATED_COLUMN, S2S_TRANSACTION_RESULT_COLUMN, S2S_IO_EXCEPTION_COLUMN}, CREATED_COLUMN + " > ?", new String[]{Long.toString(lastTimestamp)}, null, null, "CREATED", null);
             try {
                 int idIndex = cursor.getColumnIndexOrThrow(ID_COLUMN);
-                int createdIndex = cursor.getColumnIndexOrThrow(S2S_CREATED_COLUMN);
+                int createdIndex = cursor.getColumnIndexOrThrow(CREATED_COLUMN);
                 int transactionResultIndex = cursor.getColumnIndexOrThrow(S2S_TRANSACTION_RESULT_COLUMN);
                 int ioeIndex = cursor.getColumnIndexOrThrow(S2S_IO_EXCEPTION_COLUMN);
                 while (cursor.moveToNext()) {

@@ -174,6 +174,14 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
         siteToSiteClientConfig.setProxyPassword(preferences.getString("proxy_port_password", null));
         siteToSiteClientConfig.setClientType(SiteToSiteClientConfig.ClientType.valueOf(preferences.getString("client_type_preference", SiteToSiteClientConfig.ClientType.HTTP.name())));
 
+        siteToSiteClientConfig.setKeystoreFilename("classpath:keystore.bks");
+        siteToSiteClientConfig.setKeystoreType("BKS");
+        siteToSiteClientConfig.setKeystorePassword("dky/UyjnxapXPeNNLE3/PRGpdAnCaOOmAAWg0F1Jm3Q");
+
+        siteToSiteClientConfig.setTruststoreFilename("classpath:truststore.bks");
+        siteToSiteClientConfig.setTruststoreType("BKS");
+        siteToSiteClientConfig.setTruststorePassword("Kr6ut7JD7DOxnquDhesorRAruHpRElS/lpzXWIt0e+M");
+
         PeerStatus peerStatus = siteToSiteDB.getPeerStatus(peerUrls, proxyHost, proxyPort);
         if (peerStatus != null) {
             siteToSiteClientConfig.setPeerStatus(peerStatus);
