@@ -70,7 +70,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
     private SiteToSiteDB siteToSiteDB;
     private long lastTimestamp = 0;
 
-    @SuppressLint("CommitPrefEdits")
+    @SuppressLint("ApplySharedPref")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
