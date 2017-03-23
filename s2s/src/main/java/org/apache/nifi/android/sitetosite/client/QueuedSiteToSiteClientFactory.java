@@ -15,33 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.service;
+package org.apache.nifi.android.sitetosite.client;
 
 import android.content.Context;
-import android.os.Parcelable;
-
-import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
-import org.apache.nifi.android.sitetosite.client.TransactionResult;
 
 import java.io.IOException;
 
-/**
- * HttpTransaction result callback that can operate even after application has exited
- */
-public interface ParcelableTransactionResultCallback extends Parcelable {
-    /**
-     * Success callback
-     *
-     * @param context the context
-     * @param transactionResult the transaction result
-     */
-    void onSuccess(Context context, TransactionResult transactionResult);
-
-    /**
-     * Failure callback
-     *
-     * @param context the context
-     * @param exception the exception
-     */
-    void onException(Context context, IOException exception);
+public interface QueuedSiteToSiteClientFactory {
+    QueuedSiteToSiteClient create(Context context, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) throws IOException;
 }

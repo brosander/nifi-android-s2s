@@ -15,33 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.service;
+package org.apache.nifi.android.sitetosite.client.persistence;
 
-import android.content.Context;
-import android.os.Parcelable;
-
-import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
-import org.apache.nifi.android.sitetosite.client.TransactionResult;
+import android.database.sqlite.SQLiteException;
 
 import java.io.IOException;
 
-/**
- * HttpTransaction result callback that can operate even after application has exited
- */
-public interface ParcelableTransactionResultCallback extends Parcelable {
-    /**
-     * Success callback
-     *
-     * @param context the context
-     * @param transactionResult the transaction result
-     */
-    void onSuccess(Context context, TransactionResult transactionResult);
+public class SQLiteIOException extends IOException {
+    private static final long serialVersionUID = 719878717290788044L;
 
-    /**
-     * Failure callback
-     *
-     * @param context the context
-     * @param exception the exception
-     */
-    void onException(Context context, IOException exception);
+    public SQLiteIOException(String message, SQLiteException cause) {
+        super(message, cause);
+    }
+
+    @Override
+    public synchronized SQLiteException getCause() {
+        return (SQLiteException) super.getCause();
+    }
 }

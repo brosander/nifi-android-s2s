@@ -41,10 +41,7 @@ import android.widget.TextView;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
-import org.apache.nifi.android.sitetosite.client.peer.PeerStatus;
-import org.apache.nifi.android.sitetosite.client.persistence.PendingIntentWrapper;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
-import org.apache.nifi.android.sitetosite.client.persistence.TransactionLogEntry;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeatableIntent;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeating;
@@ -67,10 +64,10 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
     public static final String LINE_SEPARATOR = System.getProperty("line.separator");
     private final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private SiteToSiteDB siteToSiteDB;
+    private DemoAppDB demoAppDB;
     private long lastTimestamp = 0;
 
-    @SuppressLint("CommitPrefEdits")
+    @SuppressLint("ApplySharedPref")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -81,7 +78,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
             edit.commit();
         }
         setContentView(R.layout.activity_main);
-        siteToSiteDB = new SiteToSiteDB(getApplicationContext());
+        demoAppDB = new DemoAppDB(getApplicationContext());
         TextView sendResults = (TextView) findViewById(R.id.sendResults);
         sendResults.setMovementMethod(new ScrollingMovementMethod());
         sendResults.post(new Runnable() {
@@ -131,15 +128,13 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
             }
 
             @Override
-            public void onSuccess(TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
-                siteToSiteDB.save(new TransactionLogEntry(transactionResult));
-                siteToSiteDB.save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
+            public void onSuccess(TransactionResult transactionResult) {
+                demoAppDB.save(new TransactionLogEntry(transactionResult));
             }
 
             @Override
-            public void onException(IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
-                siteToSiteDB.save(new TransactionLogEntry(exception));
-                siteToSiteDB.save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
+            public void onException(IOException exception) {
+                demoAppDB.save(new TransactionLogEntry(exception));
             }
         });
     }
@@ -174,17 +169,12 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
         siteToSiteClientConfig.setProxyPassword(preferences.getString("proxy_port_password", null));
         siteToSiteClientConfig.setClientType(SiteToSiteClientConfig.ClientType.valueOf(preferences.getString("client_type_preference", SiteToSiteClientConfig.ClientType.HTTP.name())));
 
-        PeerStatus peerStatus = siteToSiteDB.getPeerStatus(peerUrls, proxyHost, proxyPort);
-        if (peerStatus != null) {
-            siteToSiteClientConfig.setPeerStatus(peerStatus);
-        }
-
         return siteToSiteClientConfig;
     }
 
     private void refresh() {
         final TextView resultView = (TextView) findViewById(R.id.sendResults);
-        for (TransactionLogEntry transactionLogEntry : siteToSiteDB.getLogEntries(lastTimestamp)) {
+        for (TransactionLogEntry transactionLogEntry : demoAppDB.getLogEntries(lastTimestamp)) {
             StringBuilder stringBuilder = new StringBuilder(LINE_SEPARATOR);
             stringBuilder.append("[");
             stringBuilder.append(simpleDateFormat.format(transactionLogEntry.getCreated()));
@@ -228,19 +218,19 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
 
     @Override
     public void onConfirm(long intervalMillis) {
-        SiteToSiteRepeatableIntent siteToSiteRepeatableIntent = SiteToSiteRepeating.createPendingIntent(getApplicationContext(), new TestDataCollector(((EditText) findViewById(R.id.edit_message)).getText().toString()), getClientConfig(), new RepeatingTransactionResultCallback());
-        siteToSiteDB.save(siteToSiteRepeatableIntent);
+        SiteToSiteRepeatableIntent siteToSiteRepeatableIntent = SiteToSiteRepeating.createSendPendingIntent(getApplicationContext(), new TestDataCollector(((EditText) findViewById(R.id.edit_message)).getText().toString()), getClientConfig(), new RepeatingTransactionResultCallback());
+        demoAppDB.save(siteToSiteRepeatableIntent);
         ((AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE)).setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(), intervalMillis, siteToSiteRepeatableIntent.getPendingIntent());
     }
 
     public void cancelAlarms(View view) {
         AlarmManager alarmManager = (AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
-        for (PendingIntentWrapper pendingIntentWrapper : siteToSiteDB.getPendingIntents()) {
+        for (PendingIntentWrapper pendingIntentWrapper : demoAppDB.getPendingIntents()) {
             PendingIntent pendingIntent = pendingIntentWrapper.getPendingIntent();
             if (pendingIntent != null) {
                 alarmManager.cancel(pendingIntent);
             }
-            siteToSiteDB.deletePendingIntent(pendingIntentWrapper.getRowId());
+            demoAppDB.deletePendingIntent(pendingIntentWrapper.getRowId());
         }
     }
 }

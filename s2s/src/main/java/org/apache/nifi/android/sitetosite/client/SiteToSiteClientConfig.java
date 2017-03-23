@@ -23,6 +23,7 @@ import android.os.Parcelable;
 import org.apache.nifi.android.sitetosite.client.http.HttpSiteToSiteClient;
 import org.apache.nifi.android.sitetosite.client.peer.PeerStatus;
 import org.apache.nifi.android.sitetosite.client.socket.SocketSiteToSiteClient;
+import org.apache.nifi.android.sitetosite.util.SerializationUtils;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -127,7 +128,7 @@ public class SiteToSiteClientConfig implements Parcelable {
     private String portIdentifier;
     private long preferredBatchDurationNanos;
     private long preferredBatchSize;
-    private int preferredBatchCount;
+    private int preferredBatchCount = 100;
     private String proxyHost;
     private int proxyPort;
     private String proxyUsername;
@@ -140,6 +141,33 @@ public class SiteToSiteClientConfig implements Parcelable {
 
     public SiteToSiteClientConfig() {
 
+    }
+
+    public SiteToSiteClientConfig(SiteToSiteClientConfig siteToSiteClientConfig) {
+        this.urls = siteToSiteClientConfig.getUrls();
+        this.timeoutNanos = siteToSiteClientConfig.getTimeout(TimeUnit.NANOSECONDS);
+        this.idleConnectionExpirationNanos = siteToSiteClientConfig.getIdleConnectionExpiration(TimeUnit.NANOSECONDS);
+        this.keystoreFilename = siteToSiteClientConfig.keystoreFilename;
+        this.keystorePassword = siteToSiteClientConfig.keystorePassword;
+        this.keystoreType = siteToSiteClientConfig.keystoreType;
+        this.truststoreFilename = siteToSiteClientConfig.truststoreFilename;
+        this.truststorePassword = siteToSiteClientConfig.truststorePassword;
+        this.truststoreType = siteToSiteClientConfig.truststoreType;
+        this.useCompression = siteToSiteClientConfig.isUseCompression();
+        this.portName = siteToSiteClientConfig.getPortName();
+        this.portIdentifier = siteToSiteClientConfig.getPortIdentifier();
+        this.preferredBatchDurationNanos = siteToSiteClientConfig.getPreferredBatchDuration(TimeUnit.NANOSECONDS);
+        this.preferredBatchSize = siteToSiteClientConfig.getPreferredBatchSize();
+        this.preferredBatchCount = siteToSiteClientConfig.getPreferredBatchCount();
+        this.proxyHost = siteToSiteClientConfig.getProxyHost();
+        this.proxyPort = siteToSiteClientConfig.getProxyPort();
+        this.proxyUsername = siteToSiteClientConfig.getProxyUsername();
+        this.proxyPassword = siteToSiteClientConfig.getProxyPassword();
+        this.peerUpdateIntervalNanos = siteToSiteClientConfig.getPeerUpdateInterval(TimeUnit.NANOSECONDS);
+        this.peerStatus = SerializationUtils.unmarshallParcelable(SerializationUtils.marshallParcelable(siteToSiteClientConfig.getPeerStatus()), PeerStatus.class);
+        this.username = siteToSiteClientConfig.getUsername();
+        this.password = siteToSiteClientConfig.getPassword();
+        this.clientType = siteToSiteClientConfig.getClientType();
     }
 
     @Override

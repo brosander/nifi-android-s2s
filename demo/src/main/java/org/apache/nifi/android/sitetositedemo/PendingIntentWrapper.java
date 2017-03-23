@@ -15,33 +15,37 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.service;
+package org.apache.nifi.android.sitetositedemo;
 
-import android.content.Context;
-import android.os.Parcelable;
-
-import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
-import org.apache.nifi.android.sitetosite.client.TransactionResult;
-
-import java.io.IOException;
+import android.app.PendingIntent;
 
 /**
- * HttpTransaction result callback that can operate even after application has exited
+ * Wrapper for PendingIntent and rowId
  */
-public interface ParcelableTransactionResultCallback extends Parcelable {
-    /**
-     * Success callback
-     *
-     * @param context the context
-     * @param transactionResult the transaction result
-     */
-    void onSuccess(Context context, TransactionResult transactionResult);
+public class PendingIntentWrapper {
+    private final long rowId;
+    private final PendingIntent pendingIntent;
+
+    public PendingIntentWrapper(long rowId, PendingIntent pendingIntent) {
+        this.rowId = rowId;
+        this.pendingIntent = pendingIntent;
+    }
 
     /**
-     * Failure callback
+     * Get the rowId
      *
-     * @param context the context
-     * @param exception the exception
+     * @return the rowId
      */
-    void onException(Context context, IOException exception);
+    public long getRowId() {
+        return rowId;
+    }
+
+    /**
+     * Get the pending intent
+     *
+     * @return the pending intent
+     */
+    public PendingIntent getPendingIntent() {
+        return pendingIntent;
+    }
 }

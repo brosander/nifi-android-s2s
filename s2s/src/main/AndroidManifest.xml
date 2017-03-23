@@ -22,6 +22,7 @@
 
     <application android:label="@string/app_name">
         <service android:name=".service.SiteToSiteService" android:exported="false"/>
+        <service android:name=".service.SiteToSiteJobService" android:permission="android.permission.BIND_JOB_SERVICE" android:exported="false"/>
         <receiver android:name=".service.SiteToSiteRepeating" android:exported="false"/>
     </application>
 </manifest>

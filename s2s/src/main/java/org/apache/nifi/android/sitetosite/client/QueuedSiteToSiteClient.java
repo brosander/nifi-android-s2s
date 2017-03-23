@@ -15,37 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.client.persistence;
+package org.apache.nifi.android.sitetosite.client;
 
-import android.app.PendingIntent;
+import org.apache.nifi.android.sitetosite.packet.DataPacket;
 
-/**
- * Wrapper for PendingIntent and rowId
- */
-public class PendingIntentWrapper {
-    private final long rowId;
-    private final PendingIntent pendingIntent;
+import java.io.IOException;
+import java.util.Iterator;
 
-    public PendingIntentWrapper(long rowId, PendingIntent pendingIntent) {
-        this.rowId = rowId;
-        this.pendingIntent = pendingIntent;
-    }
+public interface QueuedSiteToSiteClient {
+    void enqueue(DataPacket dataPacket) throws IOException;
 
-    /**
-     * Get the rowId
-     *
-     * @return the rowId
-     */
-    public long getRowId() {
-        return rowId;
-    }
+    void enqueue(Iterator<DataPacket> dataPackets) throws IOException;
 
-    /**
-     * Get the pending intent
-     *
-     * @return the pending intent
-     */
-    public PendingIntent getPendingIntent() {
-        return pendingIntent;
-    }
+    void process() throws IOException;
+
+    void cleanup() throws IOException;
 }
