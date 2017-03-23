@@ -53,48 +53,68 @@ import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.ID_COLUMN;
 
-public class SqlLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
-    public static final String CANONICAL_NAME = SqlLiteDataPacketQueue.class.getCanonicalName();
+public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
+    public static final String CANONICAL_NAME = SQLiteDataPacketQueue.class.getCanonicalName();
     public static final String AGE_OFF_ROW_COUNT_QUERY = new StringBuilder("DELETE FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME)
             .append(" WHERE ").append(ID_COLUMN)
             .append(" IN (SELECT ").append(ID_COLUMN)
             .append(" FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME)
-            .append(" ORDER BY ").append(DATA_PACKET_QEUE_PRIORITY_COLUMN).append(" ASC, ").append(CREATED_COLUMN).append(" ASC")
+            .append(" ORDER BY ").append(DATA_PACKET_QEUE_PRIORITY_COLUMN).append(" ASC, ").append(CREATED_COLUMN).append(" ASC, ").append(ID_COLUMN).append(" ASC")
             .append(" LIMIT ?)").toString();
 
     private final SiteToSiteClient siteToSiteClient;
     private final SiteToSiteDB siteToSiteDB;
     private final DataPacketPrioritizer dataPacketPrioritizer;
-    private final int limit;
-    private final long softAgeOffAgeMillis;
+    private final long maxRows;
+    private final long maxSize;
+    private final int iteratorSizeLimit;
 
-    public SqlLiteDataPacketQueue(SiteToSiteClient siteToSiteClient, SiteToSiteDB siteToSiteDB, DataPacketPrioritizer dataPacketPrioritizer, int limit, long softAgeOffAgeMillis) {
+    public SQLiteDataPacketQueue(SiteToSiteClient siteToSiteClient, SiteToSiteDB siteToSiteDB, DataPacketPrioritizer dataPacketPrioritizer, long maxRows, long maxSize, int iteratorSizeLimit) {
         this.siteToSiteClient = siteToSiteClient;
         this.siteToSiteDB = siteToSiteDB;
         this.dataPacketPrioritizer = dataPacketPrioritizer;
-        this.limit = limit;
-        this.softAgeOffAgeMillis = softAgeOffAgeMillis;
+        this.maxRows = maxRows;
+        this.maxSize = maxSize;
+        this.iteratorSizeLimit = iteratorSizeLimit;
     }
 
-    private static void ageOffRowCount(SQLiteDatabase writableDatabase, long maxRows) {
+    private static SQLiteStatement buildDeleteQuery(SQLiteDatabase database, int numIds) {
+        StringBuilder queryBuilder = new StringBuilder("DELETE FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME).append(" WHERE ").append(ID_COLUMN).append(" IN (");
+        for (int i = 0; i < numIds; i++) {
+            queryBuilder.append("?, ");
+        }
+        queryBuilder.setLength(queryBuilder.length() - 2);
+        return database.compileStatement(queryBuilder.append(")").toString());
+    }
+
+    private static int executeDeleteQuery(SQLiteStatement sqLiteStatement, long[] ids, int numIds) {
+        sqLiteStatement.clearBindings();
+        for (int i = 0; i < numIds; i++) {
+            sqLiteStatement.bindLong(i + 1, ids[i]);
+        }
+        return sqLiteStatement.executeUpdateDelete();
+    }
+
+    protected void ageOffRowCount(SQLiteDatabase writableDatabase) {
         if (maxRows > 0) {
-            Cursor cursor = writableDatabase.query(DATA_PACKET_QUEUE_TABLE_NAME, new String[]{"count(*) as rows"}, null, null, null, null, null);
-            long rows;
-            try {
-                if (!cursor.moveToNext()) {
-                    return;
-                }
-                rows = cursor.getLong(cursor.getColumnIndex("rows"));
-            } finally {
-                cursor.close();
-            }
+            long rows = getNumRows(writableDatabase);
             if (rows > maxRows) {
                 writableDatabase.execSQL(AGE_OFF_ROW_COUNT_QUERY, new Object[]{rows - maxRows});
             }
         }
     }
 
-    private static void ageOffSize(SQLiteDatabase writableDatabase, long maxSize) {
+    protected long getNumRows(SQLiteDatabase writableDatabase) {
+        Cursor cursor = writableDatabase.query(DATA_PACKET_QUEUE_TABLE_NAME, new String[]{"count(*) as rows"}, null, null, null, null, null);
+        try {
+            cursor.moveToNext();
+            return cursor.getLong(cursor.getColumnIndex("rows"));
+        } finally {
+            cursor.close();
+        }
+    }
+
+    protected void ageOffSize(SQLiteDatabase writableDatabase) {
         if (maxSize > 0) {
             Cursor cursor = null;
             try {
@@ -150,23 +170,6 @@ public class SqlLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
         }
     }
 
-    private static SQLiteStatement buildDeleteQuery(SQLiteDatabase database, int numIds) {
-        StringBuilder queryBuilder = new StringBuilder("DELETE FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME).append(" WHERE ").append(ID_COLUMN).append(" IN (");
-        for (int i = 0; i < numIds; i++) {
-            queryBuilder.append("?, ");
-        }
-        queryBuilder.setLength(queryBuilder.length() - 2);
-        return database.compileStatement(queryBuilder.append(")").toString());
-    }
-
-    private static int executeDeleteQuery(SQLiteStatement sqLiteStatement, long[] ids, int numIds) {
-        sqLiteStatement.clearBindings();
-        for (int i = 0; i < numIds; i++) {
-            sqLiteStatement.bindLong(i, ids[i]);
-        }
-        return sqLiteStatement.executeUpdateDelete();
-    }
-
     @Override
     public void enqueue(Iterator<DataPacket> dataPackets) throws IOException {
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
@@ -175,18 +178,10 @@ public class SqlLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
             while (dataPackets.hasNext()) {
                 DataPacket dataPacket = dataPackets.next();
                 ContentValues contentValues = new ContentValues();
-                JSONObject attributesObject = new JSONObject();
-                for (Map.Entry<String, String> entry : dataPacket.getAttributes().entrySet()) {
-                    try {
-                        attributesObject.put(entry.getKey(), entry.getValue());
-                    } catch (JSONException e) {
-                        throw new IOException("Unable to put attribute value of \"" + entry.getValue() + "\" for key \"" + entry.getKey() + "\"");
-                    }
-                }
                 long createdTime = new Date().getTime();
                 contentValues.put(CREATED_COLUMN, createdTime);
                 contentValues.put(DATA_PACKET_QEUE_PRIORITY_COLUMN, dataPacketPrioritizer.getPriority(dataPacket));
-                contentValues.put(DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN, attributesObject.toString().getBytes(Charsets.UTF_8));
+                contentValues.put(DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN, getAttributesBytes(dataPacket));
                 InputStream inputStream = dataPacket.getData();
                 try {
                     contentValues.put(CONTENT_COLUMN, IOUtils.readInputStream(inputStream));
@@ -208,10 +203,26 @@ public class SqlLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
         }
     }
 
-    private void truncateToLimits(SQLiteDatabase writableDatabase, long maxRows, long maxSize) {
+    protected byte[] getAttributesBytes(DataPacket dataPacket) throws IOException {
+        JSONObject attributesObject = new JSONObject();
+        for (Map.Entry<String, String> entry : dataPacket.getAttributes().entrySet()) {
+            try {
+                attributesObject.put(entry.getKey(), entry.getValue());
+            } catch (JSONException e) {
+                throw new IOException("Unable to put attribute value of \"" + entry.getValue() + "\" for key \"" + entry.getKey() + "\"");
+            }
+        }
+        return attributesObject.toString().getBytes(Charsets.UTF_8);
+    }
+
+    private void truncateToLimits(SQLiteDatabase writableDatabase, long maxSize) {
+        ageOffTtl(writableDatabase);
+        ageOffRowCount(writableDatabase);
+        ageOffSize(writableDatabase);
+    }
+
+    protected void ageOffTtl(SQLiteDatabase writableDatabase) {
         writableDatabase.execSQL("DELETE FROM " + DATA_PACKET_QUEUE_TABLE_NAME + " WHERE " + DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + " <= ?", new Object[]{new Date().getTime()});
-        ageOffRowCount(writableDatabase, maxRows);
-        ageOffSize(writableDatabase, maxSize);
     }
 
     @Override
@@ -221,27 +232,31 @@ public class SqlLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
         }
     }
 
-    public boolean doProcess() throws IOException {
+    protected boolean doProcess() throws IOException {
         String transactionId = UUID.randomUUID().toString();
-        SqlLiteDataPacketIterator sqlLiteDataPacketIterator = new SqlLiteDataPacketIterator(siteToSiteDB, transactionId, limit);
-        if (!sqlLiteDataPacketIterator.hasNext()) {
+        SQLiteDataPacketIterator sqLiteDataPacketIterator = getSqLiteDataPacketIterator(transactionId);
+        if (!sqLiteDataPacketIterator.hasNext()) {
             return false;
         }
         TransactionResult transactionResult = null;
         Transaction transaction = siteToSiteClient.createTransaction();
         try {
-            while (sqlLiteDataPacketIterator.hasNext()) {
-                transaction.send(sqlLiteDataPacketIterator.next());
+            while (sqLiteDataPacketIterator.hasNext()) {
+                transaction.send(sqLiteDataPacketIterator.next());
             }
             transaction.confirm();
             transactionResult = transaction.complete();
         } catch (Exception e) {
-            sqlLiteDataPacketIterator.transactionFailed();
+            sqLiteDataPacketIterator.transactionFailed();
         }
         if (transactionResult != null) {
-            sqlLiteDataPacketIterator.transactionComplete();
+            sqLiteDataPacketIterator.transactionComplete();
             return true;
         }
         return false;
+    }
+
+    protected SQLiteDataPacketIterator getSqLiteDataPacketIterator(String transactionId) {
+        return new SQLiteDataPacketIterator(siteToSiteDB, transactionId, iteratorSizeLimit);
     }
 }

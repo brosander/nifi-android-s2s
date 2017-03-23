@@ -43,8 +43,8 @@ import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TRANSACTION_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.ID_COLUMN;
 
-public class SqlLiteDataPacketIterator {
-    public static final String CANONICAL_NAME = SqlLiteDataPacketIterator.class.getCanonicalName();
+public class SQLiteDataPacketIterator {
+    public static final String CANONICAL_NAME = SQLiteDataPacketIterator.class.getCanonicalName();
 
     private final SiteToSiteDB siteToSiteDB;
     private final String transactionId;
@@ -54,7 +54,7 @@ public class SqlLiteDataPacketIterator {
     private final int contentIndex;
     private boolean hasNext;
 
-    public SqlLiteDataPacketIterator(SiteToSiteDB siteToSiteDB, String transactionId, int limit) {
+    public SQLiteDataPacketIterator(SiteToSiteDB siteToSiteDB, String transactionId, int limit) {
         this.siteToSiteDB = siteToSiteDB;
         this.transactionId = transactionId;
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
@@ -65,7 +65,7 @@ public class SqlLiteDataPacketIterator {
                     .append("(SELECT ").append(ID_COLUMN).append(" FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME)
                     .append(" WHERE ").append(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN ).append(" > ?")
                     .append(" AND ").append(DATA_PACKET_QUEUE_TRANSACTION_COLUMN).append(" IS NULL")
-                    .append(" ORDER BY ").append(DATA_PACKET_QEUE_PRIORITY_COLUMN).append(" DESC, ").append(CREATED_COLUMN).append(" DESC")
+                    .append(" ORDER BY ").append(DATA_PACKET_QEUE_PRIORITY_COLUMN).append(" DESC, ").append(CREATED_COLUMN).append(" DESC, ").append(ID_COLUMN).append(" DESC")
                     .append(" LIMIT ?)").toString(), new Object[] {transactionId, new Date().getTime(), limit});
         } finally {
             writableDatabase.close();
@@ -74,7 +74,8 @@ public class SqlLiteDataPacketIterator {
         Cursor cursor = null;
         try {
             cursor = readableDatabase.query(false, DATA_PACKET_QUEUE_TABLE_NAME, new String[]{DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN, CONTENT_COLUMN},
-                    DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[]{transactionId}, null, null, null, null);
+                    DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[]{transactionId}, null, null,
+                    DATA_PACKET_QEUE_PRIORITY_COLUMN + " DESC, " + CREATED_COLUMN + " DESC, " + ID_COLUMN + " DESC", null);
             this.cursor = cursor;
             this.attributesIndex = cursor.getColumnIndex(DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN);
             this.contentIndex = cursor.getColumnIndex(CONTENT_COLUMN);
