@@ -17,12 +17,40 @@
 
 package org.apache.nifi.android.sitetosite.client.queue;
 
-import android.os.Parcelable;
+import android.os.Parcel;
 
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
 
-public interface DataPacketPrioritizer extends Parcelable {
-    long getPriority(DataPacket dataPacket);
+public class NoOpDataPacketPrioritizer implements DataPacketPrioritizer {
+    public static Creator<NoOpDataPacketPrioritizer> CREATOR = new Creator<NoOpDataPacketPrioritizer>() {
+        @Override
+        public NoOpDataPacketPrioritizer createFromParcel(Parcel source) {
+            return new NoOpDataPacketPrioritizer();
+        }
 
-    long getTtl(DataPacket dataPacket);
+        @Override
+        public NoOpDataPacketPrioritizer[] newArray(int size) {
+            return new NoOpDataPacketPrioritizer[size];
+        }
+    };
+
+    @Override
+    public long getPriority(DataPacket dataPacket) {
+        return 0;
+    }
+
+    @Override
+    public long getTtl(DataPacket dataPacket) {
+        return -1;
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+
+    }
 }

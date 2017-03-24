@@ -68,47 +68,52 @@ public class SiteToSiteDB {
 
     public static final int VERSION = 1;
 
+    private static SQLiteOpenHelper sqLiteOpenHelper;
+
     private final Context context;
-    private final SQLiteOpenHelper sqLiteOpenHelper;
 
     public SiteToSiteDB(Context context) {
         this.context = context;
-        sqLiteOpenHelper = new SQLiteOpenHelper(context, SiteToSiteDB.class.getSimpleName() + ".db", null, VERSION) {
-            @Override
-            public void onCreate(SQLiteDatabase db) {
-                db.execSQL("CREATE TABLE " + S2S_TABLE_NAME + " (" +
-                        ID_COLUMN + " INTEGER PRIMARY KEY, " +
-                        CREATED_COLUMN + " INTEGER, " +
-                        S2S_TRANSACTION_RESULT_COLUMN + " BLOB, " +
-                        S2S_IO_EXCEPTION_COLUMN + " BLOB)");
-                db.execSQL("CREATE TABLE " + PENDING_INTENT_TABLE_NAME + " (" +
-                        ID_COLUMN + " INTEGER PRIMARY KEY, " +
-                        PENDING_INTENT_REQUEST_CODE + " INTEGER, " +
-                        CONTENT_COLUMN + " BLOB)");
-                db.execSQL("CREATE TABLE " + PEER_STATUSES_TABLE_NAME +" (" +
-                        PEER_STATUS_URLS_COLUMN + " TEXT, " +
-                        PEER_STATUS_PROXY_HOST_COLUMN + " TEXT, " +
-                        PEER_STATUS_PROXY_PORT_COLUMN + " INTEGER, " +
-                        CONTENT_COLUMN + " BLOB, " +
-                        "PRIMARY KEY(" + PEER_STATUS_URLS_COLUMN + ", " + PEER_STATUS_PROXY_HOST_COLUMN + ", " + PEER_STATUS_PROXY_PORT_COLUMN + "))");
-                db.execSQL("CREATE TABLE " + DATA_PACKET_QUEUE_TABLE_NAME + "(" +
-                        ID_COLUMN + " INTEGER PRIMARY KEY, " +
-                        CREATED_COLUMN + " INTEGER, " +
-                        DATA_PACKET_QEUE_PRIORITY_COLUMN + " INTEGER, " +
-                        DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN + " BLOB, " +
-                        CONTENT_COLUMN + " BLOB, " +
-                        DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " TEXT, " +
-                        DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + " INTEGER)");
-                db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_" + DATA_PACKET_QUEUE_TRANSACTION_COLUMN + "_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QUEUE_TRANSACTION_COLUMN + ")");
-                db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_" + DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + "_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + ")");
-                db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_sort_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QEUE_PRIORITY_COLUMN + ", " + CREATED_COLUMN + ", " + ID_COLUMN + ")");
-            }
+        synchronized (SiteToSiteDB.class) {
+            if (sqLiteOpenHelper == null) {
+                sqLiteOpenHelper = new SQLiteOpenHelper(context, SiteToSiteDB.class.getSimpleName() + ".db", null, VERSION) {
+                    @Override
+                    public void onCreate(SQLiteDatabase db) {
+                        db.execSQL("CREATE TABLE " + S2S_TABLE_NAME + " (" +
+                                ID_COLUMN + " INTEGER PRIMARY KEY, " +
+                                CREATED_COLUMN + " INTEGER, " +
+                                S2S_TRANSACTION_RESULT_COLUMN + " BLOB, " +
+                                S2S_IO_EXCEPTION_COLUMN + " BLOB)");
+                        db.execSQL("CREATE TABLE " + PENDING_INTENT_TABLE_NAME + " (" +
+                                ID_COLUMN + " INTEGER PRIMARY KEY, " +
+                                PENDING_INTENT_REQUEST_CODE + " INTEGER, " +
+                                CONTENT_COLUMN + " BLOB)");
+                        db.execSQL("CREATE TABLE " + PEER_STATUSES_TABLE_NAME + " (" +
+                                PEER_STATUS_URLS_COLUMN + " TEXT, " +
+                                PEER_STATUS_PROXY_HOST_COLUMN + " TEXT, " +
+                                PEER_STATUS_PROXY_PORT_COLUMN + " INTEGER, " +
+                                CONTENT_COLUMN + " BLOB, " +
+                                "PRIMARY KEY(" + PEER_STATUS_URLS_COLUMN + ", " + PEER_STATUS_PROXY_HOST_COLUMN + ", " + PEER_STATUS_PROXY_PORT_COLUMN + "))");
+                        db.execSQL("CREATE TABLE " + DATA_PACKET_QUEUE_TABLE_NAME + "(" +
+                                ID_COLUMN + " INTEGER PRIMARY KEY, " +
+                                CREATED_COLUMN + " INTEGER, " +
+                                DATA_PACKET_QEUE_PRIORITY_COLUMN + " INTEGER, " +
+                                DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN + " BLOB, " +
+                                CONTENT_COLUMN + " BLOB, " +
+                                DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " TEXT, " +
+                                DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + " INTEGER)");
+                        db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_" + DATA_PACKET_QUEUE_TRANSACTION_COLUMN + "_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QUEUE_TRANSACTION_COLUMN + ")");
+                        db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_" + DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + "_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + ")");
+                        db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_sort_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QEUE_PRIORITY_COLUMN + ", " + CREATED_COLUMN + ", " + ID_COLUMN + ")");
+                    }
 
-            @Override
-            public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+                    @Override
+                    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 
+                    }
+                };
             }
-        };
+        }
     }
 
     /**

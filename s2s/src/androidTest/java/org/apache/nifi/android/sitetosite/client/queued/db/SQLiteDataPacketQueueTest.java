@@ -18,6 +18,7 @@
 package org.apache.nifi.android.sitetosite.client.queued.db;
 
 import android.database.sqlite.SQLiteDatabase;
+import android.os.Parcel;
 import android.support.test.InstrumentationRegistry;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
@@ -332,8 +333,18 @@ public class SQLiteDataPacketQueueTest {
         }
     }
 
-    private class TestDataPacketPrioritizer implements DataPacketPrioritizer {
+    public static class TestDataPacketPrioritizer implements DataPacketPrioritizer {
+        public static final Creator<TestDataPacketPrioritizer> CREATOR = new Creator<TestDataPacketPrioritizer>() {
+            @Override
+            public TestDataPacketPrioritizer createFromParcel(Parcel source) {
+                return new TestDataPacketPrioritizer();
+            }
 
+            @Override
+            public TestDataPacketPrioritizer[] newArray(int size) {
+                return new TestDataPacketPrioritizer[size];
+            }
+        };
         @Override
         public long getPriority(DataPacket dataPacket) {
             String priorityString = dataPacket.getAttributes().get(TEST_PRIORITY);
@@ -344,6 +355,16 @@ public class SQLiteDataPacketQueueTest {
         public long getTtl(DataPacket dataPacket) {
             String ttlString = dataPacket.getAttributes().get(TEST_TTL);
             return ttlString == null ? -1L : Long.parseLong(ttlString);
+        }
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        @Override
+        public void writeToParcel(Parcel dest, int flags) {
+
         }
     }
 }

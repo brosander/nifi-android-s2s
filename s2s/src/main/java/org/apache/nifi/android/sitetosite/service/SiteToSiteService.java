@@ -37,6 +37,7 @@ import org.apache.nifi.android.sitetosite.util.SerializationUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class SiteToSiteService extends IntentService {
@@ -102,7 +103,7 @@ public class SiteToSiteService extends IntentService {
     }
 
     public static void sendDataPacket(Context context, DataPacket packet, SiteToSiteClientConfig siteToSiteClientConfig, TransactionResultCallback transactionResultCallback) {
-        context.startService(getIntent(context, Arrays.asList(packet), siteToSiteClientConfig, transactionResultCallback));
+        context.startService(getIntent(context, Collections.singletonList(packet), siteToSiteClientConfig, transactionResultCallback));
     }
 
     public static Intent getIntent(Context context, Iterable<DataPacket> packets, SiteToSiteClientConfig siteToSiteClientConfig, TransactionResultCallback transactionResultCallback) {

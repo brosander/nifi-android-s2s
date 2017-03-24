@@ -15,14 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.client.queue;
+package org.apache.nifi.android.sitetosite.client;
 
-import android.os.Parcelable;
+import android.content.Context;
 
-import org.apache.nifi.android.sitetosite.packet.DataPacket;
+import java.io.IOException;
 
-public interface DataPacketPrioritizer extends Parcelable {
-    long getPriority(DataPacket dataPacket);
-
-    long getTtl(DataPacket dataPacket);
+public interface QueuedSiteToSiteClientFactory {
+    QueuedSiteToSiteClient create(Context context, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) throws IOException;
 }
