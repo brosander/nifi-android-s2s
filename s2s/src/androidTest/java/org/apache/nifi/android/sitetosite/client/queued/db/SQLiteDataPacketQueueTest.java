@@ -26,7 +26,7 @@ import org.apache.nifi.android.sitetosite.client.Transaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
-import org.apache.nifi.android.sitetosite.client.queue.DataPacketPrioritizer;
+import org.apache.nifi.android.sitetosite.client.queued.DataPacketPrioritizer;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
 import org.apache.nifi.android.sitetosite.util.Charsets;

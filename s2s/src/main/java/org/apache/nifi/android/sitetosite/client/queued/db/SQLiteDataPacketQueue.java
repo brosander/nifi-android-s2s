@@ -27,8 +27,8 @@ import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
 import org.apache.nifi.android.sitetosite.client.Transaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
-import org.apache.nifi.android.sitetosite.client.queue.DataPacketPrioritizer;
 import org.apache.nifi.android.sitetosite.client.queued.AbstractQueuedSiteToSiteClient;
+import org.apache.nifi.android.sitetosite.client.queued.DataPacketPrioritizer;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
 import org.apache.nifi.android.sitetosite.util.Charsets;
 import org.apache.nifi.android.sitetosite.util.IOUtils;
@@ -93,6 +93,75 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
             sqLiteStatement.bindLong(i + 1, ids[i]);
         }
         return sqLiteStatement.executeUpdateDelete();
+    }
+
+    @Override
+    public void enqueue(Iterator<DataPacket> dataPackets) throws IOException {
+        SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
+        try {
+            writableDatabase.beginTransaction();
+            try {
+                while (dataPackets.hasNext()) {
+                    DataPacket dataPacket = dataPackets.next();
+                    ContentValues contentValues = new ContentValues();
+                    long createdTime = new Date().getTime();
+                    contentValues.put(CREATED_COLUMN, createdTime);
+                    contentValues.put(DATA_PACKET_QEUE_PRIORITY_COLUMN, dataPacketPrioritizer.getPriority(dataPacket));
+                    contentValues.put(DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN, getAttributesBytes(dataPacket));
+                    InputStream inputStream = dataPacket.getData();
+                    try {
+                        contentValues.put(CONTENT_COLUMN, IOUtils.readInputStream(inputStream));
+                    } finally {
+                        inputStream.close();
+                    }
+                    long ttl = dataPacketPrioritizer.getTtl(dataPacket);
+                    if (ttl < 0) {
+                        contentValues.put(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN, Long.MAX_VALUE);
+                    } else {
+                        contentValues.put(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN, createdTime + ttl);
+                    }
+                    writableDatabase.insert(DATA_PACKET_QUEUE_TABLE_NAME, null, contentValues);
+                }
+                writableDatabase.setTransactionSuccessful();
+            } finally {
+                writableDatabase.endTransaction();
+            }
+        } finally {
+            writableDatabase.close();
+        }
+    }
+
+    protected byte[] getAttributesBytes(DataPacket dataPacket) throws IOException {
+        JSONObject attributesObject = new JSONObject();
+        for (Map.Entry<String, String> entry : dataPacket.getAttributes().entrySet()) {
+            try {
+                attributesObject.put(entry.getKey(), entry.getValue());
+            } catch (JSONException e) {
+                throw new IOException("Unable to put attribute value of \"" + entry.getValue() + "\" for key \"" + entry.getKey() + "\"");
+            }
+        }
+        return attributesObject.toString().getBytes(Charsets.UTF_8);
+    }
+
+    public void cleanup() {
+        SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
+        try {
+            writableDatabase.beginTransaction();
+            try {
+                ageOffTtl(writableDatabase);
+                ageOffRowCount(writableDatabase);
+                ageOffSize(writableDatabase);
+                writableDatabase.setTransactionSuccessful();
+            } finally {
+                writableDatabase.endTransaction();
+            }
+        } finally {
+            writableDatabase.close();
+        }
+    }
+
+    protected void ageOffTtl(SQLiteDatabase writableDatabase) {
+        writableDatabase.execSQL("DELETE FROM " + DATA_PACKET_QUEUE_TABLE_NAME + " WHERE " + DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + " <= ?", new Object[]{new Date().getTime()});
     }
 
     protected void ageOffRowCount(SQLiteDatabase writableDatabase) {
@@ -168,61 +237,6 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
                 }
             }
         }
-    }
-
-    @Override
-    public void enqueue(Iterator<DataPacket> dataPackets) throws IOException {
-        SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
-        writableDatabase.beginTransaction();
-        try {
-            while (dataPackets.hasNext()) {
-                DataPacket dataPacket = dataPackets.next();
-                ContentValues contentValues = new ContentValues();
-                long createdTime = new Date().getTime();
-                contentValues.put(CREATED_COLUMN, createdTime);
-                contentValues.put(DATA_PACKET_QEUE_PRIORITY_COLUMN, dataPacketPrioritizer.getPriority(dataPacket));
-                contentValues.put(DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN, getAttributesBytes(dataPacket));
-                InputStream inputStream = dataPacket.getData();
-                try {
-                    contentValues.put(CONTENT_COLUMN, IOUtils.readInputStream(inputStream));
-                } finally {
-                    inputStream.close();
-                }
-                long ttl = dataPacketPrioritizer.getTtl(dataPacket);
-                if (ttl < 0) {
-                    contentValues.put(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN, Long.MAX_VALUE);
-                } else {
-                    contentValues.put(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN, createdTime + ttl);
-                }
-                writableDatabase.insert(DATA_PACKET_QUEUE_TABLE_NAME, null, contentValues);
-            }
-            writableDatabase.setTransactionSuccessful();
-        } finally {
-            writableDatabase.endTransaction();
-            writableDatabase.close();
-        }
-    }
-
-    protected byte[] getAttributesBytes(DataPacket dataPacket) throws IOException {
-        JSONObject attributesObject = new JSONObject();
-        for (Map.Entry<String, String> entry : dataPacket.getAttributes().entrySet()) {
-            try {
-                attributesObject.put(entry.getKey(), entry.getValue());
-            } catch (JSONException e) {
-                throw new IOException("Unable to put attribute value of \"" + entry.getValue() + "\" for key \"" + entry.getKey() + "\"");
-            }
-        }
-        return attributesObject.toString().getBytes(Charsets.UTF_8);
-    }
-
-    private void truncateToLimits(SQLiteDatabase writableDatabase, long maxSize) {
-        ageOffTtl(writableDatabase);
-        ageOffRowCount(writableDatabase);
-        ageOffSize(writableDatabase);
-    }
-
-    protected void ageOffTtl(SQLiteDatabase writableDatabase) {
-        writableDatabase.execSQL("DELETE FROM " + DATA_PACKET_QUEUE_TABLE_NAME + " WHERE " + DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + " <= ?", new Object[]{new Date().getTime()});
     }
 
     @Override

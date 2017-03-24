@@ -21,8 +21,8 @@ import android.content.Context;
 import android.os.Parcel;
 
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
-import org.apache.nifi.android.sitetosite.client.queue.DataPacketPrioritizer;
-import org.apache.nifi.android.sitetosite.client.queue.NoOpDataPacketPrioritizer;
+import org.apache.nifi.android.sitetosite.client.queued.DataPacketPrioritizer;
+import org.apache.nifi.android.sitetosite.client.queued.NoOpDataPacketPrioritizer;
 import org.apache.nifi.android.sitetosite.client.queued.db.SQLiteDataPacketQueue;
 
 import java.io.IOException;

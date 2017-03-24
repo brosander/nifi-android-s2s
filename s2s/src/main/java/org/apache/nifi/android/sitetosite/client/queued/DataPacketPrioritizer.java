@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetosite.client.queue;
+package org.apache.nifi.android.sitetosite.client.queued;
 
 import android.os.Parcelable;
 
