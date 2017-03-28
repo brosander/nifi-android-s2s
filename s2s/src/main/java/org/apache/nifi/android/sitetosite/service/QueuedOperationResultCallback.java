@@ -21,18 +21,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.ResultReceiver;
 
-import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
-import org.apache.nifi.android.sitetosite.client.TransactionResult;
+import org.apache.nifi.android.sitetosite.client.QueuedSiteToSiteClientConfig;
 
 import java.io.IOException;
 
 import static org.apache.nifi.android.sitetosite.service.SiteToSiteService.IO_EXCEPTION;
-import static org.apache.nifi.android.sitetosite.service.SiteToSiteService.RESULT;
 
-/**
- * Callback to be invoked on transaction result
- */
-public interface TransactionResultCallback {
+public interface QueuedOperationResultCallback {
     /**
      * Handler to do the invoking
      *
@@ -43,23 +38,22 @@ public interface TransactionResultCallback {
     /**
      * Success callback
      *
-     * @param transactionResult the result
-     * @param siteToSiteClientConfig (possibly updated) s2s config
+     * @param queuedSiteToSiteClientConfig (possibly updated) s2s config
      */
-    void onSuccess(TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig);
+    void onSuccess(QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig);
 
     /**
      * Failure callback
      * @param exception the error
-     * @param siteToSiteClientConfig (possibly updated) s2s config
+     * @param queuedSiteToSiteClientConfig (possibly updated) s2s config
      */
-    void onException(IOException exception, SiteToSiteClientConfig siteToSiteClientConfig);
+    void onException(IOException exception, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig);
 
     /**
      * Class to proxy the callback via a ResultReceiver (a must for the IntentService)
      */
     final class Receiver extends ResultReceiver {
-        private final TransactionResultCallback delegate;
+        private final QueuedOperationResultCallback delegate;
 
         /**
          * Create a new ResultReceive to receive results.  Your
@@ -68,7 +62,7 @@ public interface TransactionResultCallback {
          *
          * @param delegate
          */
-        public Receiver(TransactionResultCallback delegate) {
+        public Receiver(QueuedOperationResultCallback delegate) {
             super(delegate.getHandler());
             this.delegate = delegate;
         }
@@ -76,31 +70,28 @@ public interface TransactionResultCallback {
         @Override
         protected void onReceiveResult(int resultCode, Bundle resultData) {
             super.onReceiveResult(resultCode, resultData);
-            SiteToSiteClientConfig siteToSiteClientConfig = resultData.getParcelable(SiteToSiteService.SITE_TO_SITE_CONFIG);
-            TransactionResult transactionResult = resultData.getParcelable(RESULT);
+            QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig = resultData.getParcelable(SiteToSiteService.SITE_TO_SITE_CONFIG);
 
             if (resultCode == 0) {
-                delegate.onSuccess(transactionResult, siteToSiteClientConfig);
+                delegate.onSuccess(queuedSiteToSiteClientConfig);
             } else {
-                delegate.onException((IOException) resultData.getSerializable(IO_EXCEPTION), siteToSiteClientConfig);
+                delegate.onException((IOException) resultData.getSerializable(IO_EXCEPTION), queuedSiteToSiteClientConfig);
             }
         }
 
-        public static ResultReceiver wrap(TransactionResultCallback transactionResultCallback) {
-            return new Receiver(transactionResultCallback);
+        public static ResultReceiver wrap(QueuedOperationResultCallback queuedOperationResultCallback) {
+            return new Receiver(queuedOperationResultCallback);
         }
 
         /**
          * Sends the given result to the receiver
          *
          * @param resultReceiver         the receiver
-         * @param transactionResult      the result
-         * @param siteToSiteClientConfig (possibly updated) s2s config
+         * @param queuedSiteToSiteClientConfig (possibly updated) s2s config
          */
-        public static void onSuccess(ResultReceiver resultReceiver, TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
+        public static void onSuccess(ResultReceiver resultReceiver, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) {
             Bundle resultData = new Bundle();
-            resultData.putParcelable(SiteToSiteService.SITE_TO_SITE_CONFIG, siteToSiteClientConfig);
-            resultData.putParcelable(RESULT, transactionResult);
+            resultData.putParcelable(SiteToSiteService.SITE_TO_SITE_CONFIG, queuedSiteToSiteClientConfig);
             resultReceiver.send(0, resultData);
         }
 
@@ -109,11 +100,11 @@ public interface TransactionResultCallback {
          *
          * @param resultReceiver         the receiver
          * @param exception              the exception
-         * @param siteToSiteClientConfig (possibly updated) s2s config
+         * @param queuedSiteToSiteClientConfig (possibly updated) s2s config
          */
-        public static void onException(ResultReceiver resultReceiver, IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
+        public static void onException(ResultReceiver resultReceiver, IOException exception, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) {
             Bundle resultData = new Bundle();
-            resultData.putParcelable(SiteToSiteService.SITE_TO_SITE_CONFIG, siteToSiteClientConfig);
+            resultData.putParcelable(SiteToSiteService.SITE_TO_SITE_CONFIG, queuedSiteToSiteClientConfig);
             resultData.putSerializable(IO_EXCEPTION, exception);
             resultReceiver.send(1, resultData);
         }

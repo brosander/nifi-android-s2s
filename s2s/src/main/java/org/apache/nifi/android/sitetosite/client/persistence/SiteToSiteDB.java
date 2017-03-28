@@ -26,15 +26,11 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Parcel;
 
-import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.peer.PeerStatus;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeatableIntent;
-import org.apache.nifi.android.sitetosite.util.SerializationUtils;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
@@ -47,10 +43,6 @@ public class SiteToSiteDB {
     public static final String CONTENT_COLUMN = "CONTENT";
     public static final String CREATED_COLUMN = "CREATED";
 
-    public static final String S2S_TABLE_NAME = "APACHE_NIFI_SITE_TO_SITE_LOG";
-    public static final String S2S_TRANSACTION_RESULT_COLUMN = "TRANSACTION_RESULT";
-    public static final String S2S_IO_EXCEPTION_COLUMN = "IO_EXCEPTION";
-
     public static final String PENDING_INTENT_TABLE_NAME = "APACHE_NIFI_SITE_TO_SITE_PENDING_INTENTS";
     public static final String PENDING_INTENT_REQUEST_CODE = "REQUEST_CODE";
 
@@ -60,7 +52,7 @@ public class SiteToSiteDB {
     public static final String PEER_STATUS_PROXY_PORT_COLUMN = "PROXY_PORT";
     public static final String PEER_STATUS_WHERE_CLAUSE = PEER_STATUS_URLS_COLUMN + " = ? AND " + PEER_STATUS_PROXY_HOST_COLUMN + " = ? AND " + PEER_STATUS_PROXY_PORT_COLUMN + " = ?";
 
-    public static final String DATA_PACKET_QUEUE_TABLE_NAME = "DATA_PACKET_QUEUE_TABLE_NAME";
+    public static final String DATA_PACKET_QUEUE_TABLE_NAME = "APACHE_NIFI_SITE_TO_SITE_QUEUE";
     public static final String DATA_PACKET_QEUE_PRIORITY_COLUMN = "PRIORITY";
     public static final String DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN = "ATTRIBUTES";
     public static final String DATA_PACKET_QUEUE_TRANSACTION_COLUMN = "TRANSACTION_ID";
@@ -79,11 +71,6 @@ public class SiteToSiteDB {
                 sqLiteOpenHelper = new SQLiteOpenHelper(context, SiteToSiteDB.class.getSimpleName() + ".db", null, VERSION) {
                     @Override
                     public void onCreate(SQLiteDatabase db) {
-                        db.execSQL("CREATE TABLE " + S2S_TABLE_NAME + " (" +
-                                ID_COLUMN + " INTEGER PRIMARY KEY, " +
-                                CREATED_COLUMN + " INTEGER, " +
-                                S2S_TRANSACTION_RESULT_COLUMN + " BLOB, " +
-                                S2S_IO_EXCEPTION_COLUMN + " BLOB)");
                         db.execSQL("CREATE TABLE " + PENDING_INTENT_TABLE_NAME + " (" +
                                 ID_COLUMN + " INTEGER PRIMARY KEY, " +
                                 PENDING_INTENT_REQUEST_CODE + " INTEGER, " +
@@ -114,56 +101,6 @@ public class SiteToSiteDB {
                 };
             }
         }
-    }
-
-    /**
-     * Saves the transactionLogEntry
-     *
-     * @param transactionLogEntry the transactionLogEntry
-     */
-    public void save(TransactionLogEntry transactionLogEntry) {
-        SQLiteDatabase writableDatabase = sqLiteOpenHelper.getWritableDatabase();
-        try {
-            ContentValues values = new ContentValues();
-            values.put(CREATED_COLUMN, transactionLogEntry.getCreated().getTime());
-            values.put(S2S_TRANSACTION_RESULT_COLUMN, SerializationUtils.marshallParcelable(transactionLogEntry.getTransactionResult()));
-            values.put(S2S_IO_EXCEPTION_COLUMN, SerializationUtils.marshallSerializable(transactionLogEntry.getIoException()));
-            transactionLogEntry.setId(writableDatabase.insert(S2S_TABLE_NAME, null, values));
-            context.sendBroadcast(new Intent(TRANSACTION_LOG_ENTRY_SAVED));
-        } finally {
-            writableDatabase.close();
-        }
-    }
-
-    /**
-     * Gets all transactionLogEntries with a timestamp after the timestamp parameter
-     *
-     * @param lastTimestamp the timestamp
-     * @return all transactionLogEntries after the timestamp
-     */
-    public List<TransactionLogEntry> getLogEntries(long lastTimestamp) {
-        List<TransactionLogEntry> transactionLogEntries = new ArrayList<>();
-        SQLiteDatabase readableDatabase = sqLiteOpenHelper.getReadableDatabase();
-        try {
-            Cursor cursor = readableDatabase.query(false, S2S_TABLE_NAME, new String[]{ID_COLUMN, CREATED_COLUMN, S2S_TRANSACTION_RESULT_COLUMN, S2S_IO_EXCEPTION_COLUMN}, CREATED_COLUMN + " > ?", new String[]{Long.toString(lastTimestamp)}, null, null, "CREATED", null);
-            try {
-                int idIndex = cursor.getColumnIndexOrThrow(ID_COLUMN);
-                int createdIndex = cursor.getColumnIndexOrThrow(CREATED_COLUMN);
-                int transactionResultIndex = cursor.getColumnIndexOrThrow(S2S_TRANSACTION_RESULT_COLUMN);
-                int ioeIndex = cursor.getColumnIndexOrThrow(S2S_IO_EXCEPTION_COLUMN);
-                while (cursor.moveToNext()) {
-                    transactionLogEntries.add(new TransactionLogEntry(cursor.getLong(idIndex),
-                            new Date(cursor.getLong(createdIndex)),
-                            SerializationUtils.unmarshallParcelable(cursor.getBlob(transactionResultIndex), TransactionResult.class),
-                            SerializationUtils.<IOException>unmarshallSerializable(cursor.getBlob(ioeIndex))));
-                }
-            } finally {
-                cursor.close();
-            }
-        } finally {
-            readableDatabase.close();
-        }
-        return transactionLogEntries;
     }
 
     /**

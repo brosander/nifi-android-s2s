@@ -28,4 +28,6 @@ public interface QueuedSiteToSiteClient {
     void enqueue(Iterator<DataPacket> dataPackets) throws IOException;
 
     void process() throws IOException;
+
+    void cleanup() throws IOException;
 }

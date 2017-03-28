@@ -22,6 +22,7 @@ import android.os.Parcel;
 import android.support.test.InstrumentationRegistry;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.Transaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
@@ -69,7 +70,12 @@ public class SQLiteDataPacketQueueTest {
             writableDatabase.close();
         }
         siteToSiteClient = new TestSiteToSiteClient();
-        sqLiteDataPacketQueue = new SQLiteDataPacketQueue(siteToSiteClient, siteToSiteDB, new TestDataPacketPrioritizer(), MAX_ROWS, MAX_SIZE, ITERATOR_SIZE_LIMIT);
+        sqLiteDataPacketQueue = new SQLiteDataPacketQueue(new SiteToSiteClientConfig(){
+            @Override
+            public SiteToSiteClient createClient() throws IOException {
+                return siteToSiteClient;
+            }
+        }, siteToSiteDB, new TestDataPacketPrioritizer(), MAX_ROWS, MAX_SIZE, ITERATOR_SIZE_LIMIT);
         testTransactionId = "testTransactionId";
     }
 

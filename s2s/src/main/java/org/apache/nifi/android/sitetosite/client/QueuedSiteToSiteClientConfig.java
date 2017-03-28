@@ -32,7 +32,7 @@ public class QueuedSiteToSiteClientConfig extends SiteToSiteClientConfig {
         DB("SQLite DB", new QueuedSiteToSiteClientFactory() {
             @Override
             public QueuedSiteToSiteClient create(Context context, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) throws IOException {
-                return new SQLiteDataPacketQueue(queuedSiteToSiteClientConfig.createClient(), new SiteToSiteDB(context), queuedSiteToSiteClientConfig.dataPacketPrioritizer,
+                return new SQLiteDataPacketQueue(queuedSiteToSiteClientConfig, new SiteToSiteDB(context), queuedSiteToSiteClientConfig.dataPacketPrioritizer,
                         queuedSiteToSiteClientConfig.maxRows, queuedSiteToSiteClientConfig.maxSize, queuedSiteToSiteClientConfig.transactionSize);
             }
         });

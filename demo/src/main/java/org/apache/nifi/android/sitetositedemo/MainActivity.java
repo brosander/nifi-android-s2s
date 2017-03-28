@@ -44,7 +44,6 @@ import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.peer.PeerStatus;
 import org.apache.nifi.android.sitetosite.client.persistence.PendingIntentWrapper;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
-import org.apache.nifi.android.sitetosite.client.persistence.TransactionLogEntry;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeatableIntent;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeating;
@@ -68,6 +67,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
     private final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
     private final Handler handler = new Handler(Looper.getMainLooper());
     private SiteToSiteDB siteToSiteDB;
+    private DemoAppDB demoAppDB;
     private long lastTimestamp = 0;
 
     @SuppressLint("ApplySharedPref")
@@ -82,6 +82,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
         }
         setContentView(R.layout.activity_main);
         siteToSiteDB = new SiteToSiteDB(getApplicationContext());
+        demoAppDB = new DemoAppDB(getApplicationContext());
         TextView sendResults = (TextView) findViewById(R.id.sendResults);
         sendResults.setMovementMethod(new ScrollingMovementMethod());
         sendResults.post(new Runnable() {
@@ -132,13 +133,13 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
 
             @Override
             public void onSuccess(TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
-                siteToSiteDB.save(new TransactionLogEntry(transactionResult));
+                demoAppDB.save(new TransactionLogEntry(transactionResult));
                 siteToSiteDB.save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
             }
 
             @Override
             public void onException(IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
-                siteToSiteDB.save(new TransactionLogEntry(exception));
+                demoAppDB.save(new TransactionLogEntry(exception));
                 siteToSiteDB.save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
             }
         });
@@ -192,7 +193,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
 
     private void refresh() {
         final TextView resultView = (TextView) findViewById(R.id.sendResults);
-        for (TransactionLogEntry transactionLogEntry : siteToSiteDB.getLogEntries(lastTimestamp)) {
+        for (TransactionLogEntry transactionLogEntry : demoAppDB.getLogEntries(lastTimestamp)) {
             StringBuilder stringBuilder = new StringBuilder(LINE_SEPARATOR);
             stringBuilder.append("[");
             stringBuilder.append(simpleDateFormat.format(transactionLogEntry.getCreated()));
@@ -236,7 +237,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
 
     @Override
     public void onConfirm(long intervalMillis) {
-        SiteToSiteRepeatableIntent siteToSiteRepeatableIntent = SiteToSiteRepeating.createPendingIntent(getApplicationContext(), new TestDataCollector(((EditText) findViewById(R.id.edit_message)).getText().toString()), getClientConfig(), new RepeatingTransactionResultCallback());
+        SiteToSiteRepeatableIntent siteToSiteRepeatableIntent = SiteToSiteRepeating.createSendPendingIntent(getApplicationContext(), new TestDataCollector(((EditText) findViewById(R.id.edit_message)).getText().toString()), getClientConfig(), new RepeatingTransactionResultCallback());
         siteToSiteDB.save(siteToSiteRepeatableIntent);
         ((AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE)).setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(), intervalMillis, siteToSiteRepeatableIntent.getPendingIntent());
     }

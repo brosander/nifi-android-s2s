@@ -23,11 +23,9 @@ import android.os.Parcel;
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
-import org.apache.nifi.android.sitetosite.client.persistence.TransactionLogEntry;
 import org.apache.nifi.android.sitetosite.service.ParcelableTransactionResultCallback;
 
 import java.io.IOException;
-import java.util.Date;
 
 public class RepeatingTransactionResultCallback implements ParcelableTransactionResultCallback {
     public static final Creator<RepeatingTransactionResultCallback> CREATOR = new Creator<RepeatingTransactionResultCallback>() {
@@ -54,15 +52,13 @@ public class RepeatingTransactionResultCallback implements ParcelableTransaction
 
     @Override
     public void onSuccess(Context context, TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
-        SiteToSiteDB siteToSiteDB = new SiteToSiteDB(context);
-        siteToSiteDB.save(new TransactionLogEntry(transactionResult));
-        siteToSiteDB.save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
+        new DemoAppDB(context).save(new TransactionLogEntry(transactionResult));
+        new SiteToSiteDB(context).save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
     }
 
     @Override
     public void onException(Context context, IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
-        SiteToSiteDB siteToSiteDB = new SiteToSiteDB(context);
-        siteToSiteDB.save(new TransactionLogEntry(exception));
-        siteToSiteDB.save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
+        new DemoAppDB(context).save(new TransactionLogEntry(exception));
+        new SiteToSiteDB(context).save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
     }
 }

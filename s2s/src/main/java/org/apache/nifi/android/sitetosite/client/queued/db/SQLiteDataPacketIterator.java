@@ -45,6 +45,14 @@ import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB
 
 public class SQLiteDataPacketIterator {
     public static final String CANONICAL_NAME = SQLiteDataPacketIterator.class.getCanonicalName();
+    public static final String MARK_ROWS_FOR_TRANSACTION_QUERY = new StringBuilder("UPDATE ").append(DATA_PACKET_QUEUE_TABLE_NAME)
+            .append(" SET ").append(DATA_PACKET_QUEUE_TRANSACTION_COLUMN).append(" = ?")
+            .append(" WHERE ").append(ID_COLUMN).append(" IN ")
+            .append("(SELECT ").append(ID_COLUMN).append(" FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME)
+            .append(" WHERE ").append(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN).append(" > ?")
+            .append(" AND ").append(DATA_PACKET_QUEUE_TRANSACTION_COLUMN).append(" IS NULL")
+            .append(" ORDER BY ").append(DATA_PACKET_QEUE_PRIORITY_COLUMN).append(" DESC, ").append(CREATED_COLUMN).append(" DESC, ").append(ID_COLUMN).append(" DESC")
+            .append(" LIMIT ?)").toString();
 
     private final SiteToSiteDB siteToSiteDB;
     private final String transactionId;
@@ -59,14 +67,7 @@ public class SQLiteDataPacketIterator {
         this.transactionId = transactionId;
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
         try {
-            writableDatabase.execSQL(new StringBuilder("UPDATE ").append(DATA_PACKET_QUEUE_TABLE_NAME)
-                    .append(" SET ").append(DATA_PACKET_QUEUE_TRANSACTION_COLUMN).append(" = ?")
-                    .append(" WHERE ").append(ID_COLUMN).append(" IN ")
-                    .append("(SELECT ").append(ID_COLUMN).append(" FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME)
-                    .append(" WHERE ").append(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN ).append(" > ?")
-                    .append(" AND ").append(DATA_PACKET_QUEUE_TRANSACTION_COLUMN).append(" IS NULL")
-                    .append(" ORDER BY ").append(DATA_PACKET_QEUE_PRIORITY_COLUMN).append(" DESC, ").append(CREATED_COLUMN).append(" DESC, ").append(ID_COLUMN).append(" DESC")
-                    .append(" LIMIT ?)").toString(), new Object[] {transactionId, new Date().getTime(), limit});
+            writableDatabase.execSQL(MARK_ROWS_FOR_TRANSACTION_QUERY, new Object[] {transactionId, new Date().getTime(), limit});
         } finally {
             writableDatabase.close();
         }

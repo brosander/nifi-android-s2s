@@ -24,6 +24,7 @@ import android.database.sqlite.SQLiteStatement;
 import android.util.Log;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.Transaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
@@ -62,15 +63,15 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
             .append(" ORDER BY ").append(DATA_PACKET_QEUE_PRIORITY_COLUMN).append(" ASC, ").append(CREATED_COLUMN).append(" ASC, ").append(ID_COLUMN).append(" ASC")
             .append(" LIMIT ?)").toString();
 
-    private final SiteToSiteClient siteToSiteClient;
+    private final SiteToSiteClientConfig siteToSiteClientConfig;
     private final SiteToSiteDB siteToSiteDB;
     private final DataPacketPrioritizer dataPacketPrioritizer;
     private final long maxRows;
     private final long maxSize;
     private final int iteratorSizeLimit;
 
-    public SQLiteDataPacketQueue(SiteToSiteClient siteToSiteClient, SiteToSiteDB siteToSiteDB, DataPacketPrioritizer dataPacketPrioritizer, long maxRows, long maxSize, int iteratorSizeLimit) {
-        this.siteToSiteClient = siteToSiteClient;
+    public SQLiteDataPacketQueue(SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteDB siteToSiteDB, DataPacketPrioritizer dataPacketPrioritizer, long maxRows, long maxSize, int iteratorSizeLimit) {
+        this.siteToSiteClientConfig = siteToSiteClientConfig;
         this.siteToSiteDB = siteToSiteDB;
         this.dataPacketPrioritizer = dataPacketPrioritizer;
         this.maxRows = maxRows;
@@ -143,6 +144,7 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
         return attributesObject.toString().getBytes(Charsets.UTF_8);
     }
 
+    @Override
     public void cleanup() {
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
         try {
@@ -241,12 +243,13 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
 
     @Override
     public void process() throws IOException {
-        while (doProcess()) {
+        SiteToSiteClient siteToSiteClient = siteToSiteClientConfig.createClient();
+        while (doProcess(siteToSiteClient)) {
             Log.d(CANONICAL_NAME, " processed batch of transactions");
         }
     }
 
-    protected boolean doProcess() throws IOException {
+    protected boolean doProcess(SiteToSiteClient siteToSiteClient) throws IOException {
         String transactionId = UUID.randomUUID().toString();
         SQLiteDataPacketIterator sqLiteDataPacketIterator = getSqLiteDataPacketIterator(transactionId);
         if (!sqLiteDataPacketIterator.hasNext()) {
