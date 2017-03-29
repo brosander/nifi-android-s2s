@@ -1,14 +1,14 @@
 package org.apache.nifi.android.sitetosite.util;
 
-import org.apache.nifi.android.sitetosite.client.http.HttpTransaction;
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.http.HttpMethod;
+import org.apache.nifi.android.sitetosite.client.http.HttpTransaction;
 import org.apache.nifi.android.sitetosite.client.http.parser.PeerListParser;
 import org.apache.nifi.android.sitetosite.client.http.parser.TransactionResultParser;
 import org.apache.nifi.android.sitetosite.client.peer.Peer;
 import org.apache.nifi.android.sitetosite.client.peer.PeerTracker;
 import org.apache.nifi.android.sitetosite.client.peer.SiteToSiteInfo;
 import org.apache.nifi.android.sitetosite.client.protocol.CompressionOutputStream;
-import org.apache.nifi.android.sitetosite.client.http.HttpMethod;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
 import org.apache.nifi.android.sitetosite.client.transaction.DataPacketWriter;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
@@ -20,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -28,19 +29,21 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 
-import static org.apache.nifi.android.sitetosite.client.http.HttpSiteToSiteClient.SITE_TO_SITE_PEERS_PATH;
 import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.ACCEPT;
 import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.CONTENT_TYPE;
 import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.LOCATION_HEADER_NAME;
 import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.LOCATION_URI_INTENT_NAME;
 import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.LOCATION_URI_INTENT_VALUE;
 import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.SERVER_SIDE_TRANSACTION_TTL;
+import static org.apache.nifi.android.sitetosite.client.http.HttpSiteToSiteClient.SITE_TO_SITE_PEERS_PATH;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class MockNiFiS2SServer {
     private final MockWebServer mockWebServer;
     private final List<RequestAssertion> requestAssertions;
+    private int verifyIndex = 0;
 
     public MockNiFiS2SServer() throws IOException {
         mockWebServer = new MockWebServer();
@@ -53,11 +56,13 @@ public class MockNiFiS2SServer {
     }
 
     public List<RecordedRequest> verifyAssertions() throws Exception {
-        assertEquals(requestAssertions.size(), mockWebServer.getRequestCount());
-        List<RecordedRequest> result = new ArrayList<>(requestAssertions.size());
-        for (RequestAssertion requestAssertion : requestAssertions) {
+        int requestAssertionCount = requestAssertions.size();
+        assertEquals(requestAssertionCount, mockWebServer.getRequestCount());
+        List<RecordedRequest> result = new ArrayList<>(requestAssertionCount);
+        for (RequestAssertion requestAssertion : requestAssertions.subList(verifyIndex, requestAssertionCount)) {
             result.add(requestAssertion.check());
         }
+        verifyIndex = requestAssertionCount;
         return result;
     }
 
@@ -125,7 +130,17 @@ public class MockNiFiS2SServer {
                 RecordedRequest recordedRequest = mockWebServer.takeRequest();
                 assertEquals(transactionPath + "/flow-files", recordedRequest.getPath());
                 assertEquals(HttpMethod.POST.name(), recordedRequest.getMethod());
-                assertArrayEquals(byteArrayOutputStream.toByteArray(), recordedRequest.getBody().readByteArray());
+                byte[] expecteds = byteArrayOutputStream.toByteArray();
+                byte[] actuals = recordedRequest.getBody().readByteArray();
+                if (!Arrays.equals(expecteds, actuals)) {
+                    String message = null;
+                    try {
+                        message = "Expected:\n \"" + new String(expecteds, Charsets.UTF_8) + "\"\n but was\n \"" + new String(actuals, Charsets.UTF_8) + "\"";
+                    } catch (Throwable throwable) {
+                        fail("Expected " + Arrays.toString(expecteds) + " but was " + Arrays.toString(actuals));
+                    }
+                    fail(message);
+                }
                 assertEquals(HttpTransaction.APPLICATION_OCTET_STREAM, recordedRequest.getHeader(CONTENT_TYPE));
                 assertEquals(HttpTransaction.TEXT_PLAIN, recordedRequest.getHeader(ACCEPT));
                 return recordedRequest;

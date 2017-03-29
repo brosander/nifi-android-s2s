@@ -43,9 +43,6 @@ public class SiteToSiteDB {
     public static final String CONTENT_COLUMN = "CONTENT";
     public static final String CREATED_COLUMN = "CREATED";
 
-    public static final String PENDING_INTENT_TABLE_NAME = "APACHE_NIFI_SITE_TO_SITE_PENDING_INTENTS";
-    public static final String PENDING_INTENT_REQUEST_CODE = "REQUEST_CODE";
-
     public static final String PEER_STATUSES_TABLE_NAME = "APACHE_NIFI_SITE_TO_SITE_PEER_STATUSES";
     public static final String PEER_STATUS_URLS_COLUMN = "URLS";
     public static final String PEER_STATUS_PROXY_HOST_COLUMN = "PROXY_HOST";
@@ -71,10 +68,6 @@ public class SiteToSiteDB {
                 sqLiteOpenHelper = new SQLiteOpenHelper(context, SiteToSiteDB.class.getSimpleName() + ".db", null, VERSION) {
                     @Override
                     public void onCreate(SQLiteDatabase db) {
-                        db.execSQL("CREATE TABLE " + PENDING_INTENT_TABLE_NAME + " (" +
-                                ID_COLUMN + " INTEGER PRIMARY KEY, " +
-                                PENDING_INTENT_REQUEST_CODE + " INTEGER, " +
-                                CONTENT_COLUMN + " BLOB)");
                         db.execSQL("CREATE TABLE " + PEER_STATUSES_TABLE_NAME + " (" +
                                 PEER_STATUS_URLS_COLUMN + " TEXT, " +
                                 PEER_STATUS_PROXY_HOST_COLUMN + " TEXT, " +
@@ -101,73 +94,6 @@ public class SiteToSiteDB {
                 };
             }
         }
-    }
-
-    /**
-     * Saves the repeatable intent (useful for later cancelling an alarm after the application has restarted)
-     *
-     * @param siteToSiteRepeatableIntent the repeatable intent
-     */
-    public void save(SiteToSiteRepeatableIntent siteToSiteRepeatableIntent) {
-        Parcel parcel = Parcel.obtain();
-        siteToSiteRepeatableIntent.getIntent().writeToParcel(parcel, 0);
-        parcel.setDataPosition(0);
-        byte[] bytes = parcel.marshall();
-        SQLiteDatabase writableDatabase = sqLiteOpenHelper.getWritableDatabase();
-        try {
-            ContentValues contentValues = new ContentValues();
-            contentValues.put(PENDING_INTENT_REQUEST_CODE, siteToSiteRepeatableIntent.getRequestCode());
-            contentValues.put(CONTENT_COLUMN, bytes);
-            writableDatabase.insert(PENDING_INTENT_TABLE_NAME, null, contentValues);
-        } finally {
-            writableDatabase.close();
-        }
-    }
-
-    /**
-     * Deletes the pending intent with the given id
-     *
-     * @param id the id
-     */
-    public void deletePendingIntent(long id) {
-        SQLiteDatabase writableDatabase = sqLiteOpenHelper.getWritableDatabase();
-        try {
-            writableDatabase.delete(PENDING_INTENT_TABLE_NAME, "ID = ?",  new String[]{Long.toString(id)});
-        } finally {
-            writableDatabase.close();
-        }
-    }
-
-    /**
-     * Retreives all pending intents that have been saved
-     *
-     * @return the pending intents
-     */
-    public List<PendingIntentWrapper> getPendingIntents() {
-        List<PendingIntentWrapper> pendingIntents = new ArrayList<>();
-        SQLiteDatabase readableDatabase = sqLiteOpenHelper.getReadableDatabase();
-        try {
-            Cursor cursor = readableDatabase.query(false, PENDING_INTENT_TABLE_NAME, new String[]{ID_COLUMN, PENDING_INTENT_REQUEST_CODE, CONTENT_COLUMN}, null, null, null, null, null, null);
-            try {
-                int idIndex = cursor.getColumnIndexOrThrow(ID_COLUMN);
-                int requestCodeIndex = cursor.getColumnIndexOrThrow(PENDING_INTENT_REQUEST_CODE);
-                int contentIndex = cursor.getColumnIndexOrThrow(CONTENT_COLUMN);
-                while (cursor.moveToNext()) {
-                    Parcel parcel = Parcel.obtain();
-                    byte[] bytes = cursor.getBlob(contentIndex);
-                    parcel.unmarshall(bytes, 0, bytes.length);
-                    parcel.setDataPosition(0);
-                    int requestCode = cursor.getInt(requestCodeIndex);
-                    Intent intent = Intent.CREATOR.createFromParcel(parcel);
-                    pendingIntents.add(new PendingIntentWrapper(cursor.getLong(idIndex), PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_NO_CREATE)));
-                }
-            } finally {
-                cursor.close();
-            }
-        } finally {
-            readableDatabase.close();
-        }
-        return pendingIntents;
     }
 
     /**
@@ -200,7 +126,7 @@ public class SiteToSiteDB {
                 values.put(PEER_STATUS_PROXY_HOST_COLUMN, proxyHost);
                 values.put(PEER_STATUS_PROXY_PORT_COLUMN, proxyPort);
                 values.put(CONTENT_COLUMN, bytes);
-                writableDatabase.insert(PEER_STATUSES_TABLE_NAME, null, values);
+                writableDatabase.insertOrThrow(PEER_STATUSES_TABLE_NAME, null, values);
                 writableDatabase.setTransactionSuccessful();
             } finally {
                 writableDatabase.endTransaction();

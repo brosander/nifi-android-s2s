@@ -31,6 +31,7 @@ import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.Transaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
+import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
 import org.apache.nifi.android.sitetosite.util.SerializationUtils;
 
@@ -47,9 +48,8 @@ public class SiteToSiteService extends IntentService {
     public static final String TRANSACTION_RESULT_CALLBACK = "TRANSACTION_RESULT_CALLBACK";
     public static final String SHOULD_COMPLETE_WAKEFUL_INTENT = "SHOULD_COMPLETE_WAKEFUL_INTENT";
     public static final String SITE_TO_SITE_CONFIG = "SITE_TO_SITE_CONFIG";
-    public static final int SUCCESS_RESULT_CODE = 0;
-    public static final int IOE_RESULT_CODE = 1;
     public static final String CANONICAL_NAME = SiteToSiteService.class.getCanonicalName();
+
     public SiteToSiteService() {
         super(SiteToSiteService.class.getName());
     }
@@ -131,6 +131,7 @@ public class SiteToSiteService extends IntentService {
                 WakefulBroadcastReceiver.completeWakefulIntent(intent);
             }
             IntentType intentType = IntentType.valueOf(intent.getStringExtra(INTENT_TYPE));
+            Intent repeatingIntent = SerializationUtils.getParcelable(intent, SiteToSiteRepeating.REPEATING_INTENT);
             if (intentType.isQueueOperation()) {
                 ResultReceiver queuedOperationResultCallback = intent.getExtras().getParcelable(TRANSACTION_RESULT_CALLBACK);
                 QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig = SerializationUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
@@ -148,10 +149,12 @@ public class SiteToSiteService extends IntentService {
                     } else {
                         Log.e(CANONICAL_NAME, "Unexpected intent type: " + intentType);
                     }
+                    SiteToSiteRepeating.updateIntentConfig(getApplicationContext(), repeatingIntent, queuedSiteToSiteClientConfig);
                     QueuedOperationResultCallback.Receiver.onSuccess(queuedOperationResultCallback, queuedSiteToSiteClientConfig);
                 } catch (IOException e) {
-                    Log.d(CANONICAL_NAME, "Error sending packets.", e);
+                    Log.d(CANONICAL_NAME, "Performing queue operation.", e);
                     if (queuedOperationResultCallback != null) {
+                        SiteToSiteRepeating.updateIntentConfig(getApplicationContext(), repeatingIntent, queuedSiteToSiteClientConfig);
                         QueuedOperationResultCallback.Receiver.onException(queuedOperationResultCallback, e, queuedSiteToSiteClientConfig);
                     }
                 } finally {
@@ -159,9 +162,9 @@ public class SiteToSiteService extends IntentService {
                 }
             } else if (intentType == IntentType.SEND) {
                 List<DataPacket> packets = intent.getExtras().getParcelableArrayList(DATA_PACKETS);
+                ResultReceiver transactionResultCallback = intent.getExtras().getParcelable(TRANSACTION_RESULT_CALLBACK);
+                SiteToSiteClientConfig siteToSiteClientConfig = SerializationUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
                 if (packets.size() > 0) {
-                    ResultReceiver transactionResultCallback = intent.getExtras().getParcelable(TRANSACTION_RESULT_CALLBACK);
-                    SiteToSiteClientConfig siteToSiteClientConfig = SerializationUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
                     try {
                         SiteToSiteClient client = siteToSiteClientConfig.createClient();
                         Transaction transaction = client.createTransaction();
@@ -171,19 +174,18 @@ public class SiteToSiteService extends IntentService {
                         transaction.confirm();
                         TransactionResult transactionResult = transaction.complete();
                         if (transactionResultCallback != null) {
+                            SiteToSiteRepeating.updateIntentConfig(getApplicationContext(), repeatingIntent, siteToSiteClientConfig);
                             TransactionResultCallback.Receiver.onSuccess(transactionResultCallback, transactionResult, siteToSiteClientConfig);
                         }
                     } catch (IOException e) {
                         Log.d(CANONICAL_NAME, "Error sending packets.", e);
                         if (transactionResultCallback != null) {
+                            SiteToSiteRepeating.updateIntentConfig(getApplicationContext(), repeatingIntent, siteToSiteClientConfig);
                             TransactionResultCallback.Receiver.onException(transactionResultCallback, e, siteToSiteClientConfig);
                         }
-                    } finally {
-                        Intent repeatingIntent = SerializationUtils.getParcelable(intent, SiteToSiteRepeating.REPEATING_INTENT);
-                        if (repeatingIntent != null) {
-                            SiteToSiteRepeating.updateIntentConfig(getApplicationContext(), repeatingIntent, siteToSiteClientConfig);
-                        }
                     }
+                } else {
+                    TransactionResultCallback.Receiver.onSuccess(transactionResultCallback, new TransactionResult(0, ResponseCode.CONFIRM_TRANSACTION, "No-op due to empty packet list."), siteToSiteClientConfig);
                 }
             }
         } catch (Exception e) {

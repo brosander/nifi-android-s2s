@@ -17,6 +17,7 @@
 
 package org.apache.nifi.android.sitetosite.client.queued.db;
 
+import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Parcel;
 import android.support.test.InstrumentationRegistry;
@@ -62,13 +63,7 @@ public class SQLiteDataPacketQueueTest {
 
     @Before
     public void setup() {
-        siteToSiteDB = new SiteToSiteDB(InstrumentationRegistry.getContext());
-        SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
-        try {
-            writableDatabase.delete(SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME, null, null);
-        } finally {
-            writableDatabase.close();
-        }
+        siteToSiteDB = getSiteToSiteDBWithCleanDataPacketQueue(InstrumentationRegistry.getContext());
         siteToSiteClient = new TestSiteToSiteClient();
         sqLiteDataPacketQueue = new SQLiteDataPacketQueue(new SiteToSiteClientConfig(){
             @Override
@@ -77,6 +72,17 @@ public class SQLiteDataPacketQueueTest {
             }
         }, siteToSiteDB, new TestDataPacketPrioritizer(), MAX_ROWS, MAX_SIZE, ITERATOR_SIZE_LIMIT);
         testTransactionId = "testTransactionId";
+    }
+
+    public static SiteToSiteDB getSiteToSiteDBWithCleanDataPacketQueue(Context context) {
+        SiteToSiteDB siteToSiteDB = new SiteToSiteDB(context);
+        SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
+        try {
+            writableDatabase.delete(SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME, null, null);
+        } finally {
+            writableDatabase.close();
+        }
+        return siteToSiteDB;
     }
 
     @Test

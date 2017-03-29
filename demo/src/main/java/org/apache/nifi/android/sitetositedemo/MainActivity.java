@@ -238,18 +238,18 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
     @Override
     public void onConfirm(long intervalMillis) {
         SiteToSiteRepeatableIntent siteToSiteRepeatableIntent = SiteToSiteRepeating.createSendPendingIntent(getApplicationContext(), new TestDataCollector(((EditText) findViewById(R.id.edit_message)).getText().toString()), getClientConfig(), new RepeatingTransactionResultCallback());
-        siteToSiteDB.save(siteToSiteRepeatableIntent);
+        demoAppDB.save(siteToSiteRepeatableIntent);
         ((AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE)).setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(), intervalMillis, siteToSiteRepeatableIntent.getPendingIntent());
     }
 
     public void cancelAlarms(View view) {
         AlarmManager alarmManager = (AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
-        for (PendingIntentWrapper pendingIntentWrapper : siteToSiteDB.getPendingIntents()) {
+        for (PendingIntentWrapper pendingIntentWrapper : demoAppDB.getPendingIntents()) {
             PendingIntent pendingIntent = pendingIntentWrapper.getPendingIntent();
             if (pendingIntent != null) {
                 alarmManager.cancel(pendingIntent);
             }
-            siteToSiteDB.deletePendingIntent(pendingIntentWrapper.getRowId());
+            demoAppDB.deletePendingIntent(pendingIntentWrapper.getRowId());
         }
     }
 }

@@ -17,14 +17,18 @@
 
 package org.apache.nifi.android.sitetositedemo;
 
+import android.app.PendingIntent;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.os.Parcel;
 
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
+import org.apache.nifi.android.sitetosite.client.persistence.PendingIntentWrapper;
+import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeatableIntent;
 import org.apache.nifi.android.sitetosite.util.SerializationUtils;
 
 import java.io.IOException;
@@ -32,11 +36,15 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.CONTENT_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.CREATED_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.ID_COLUMN;
 
 public class DemoAppDB {
     public static final String TRANSACTION_LOG_ENTRY_SAVED = DemoAppDB.class.getCanonicalName() + ".save(transactionLogEntry)";
+
+    public static final String PENDING_INTENT_TABLE_NAME = "APACHE_NIFI_SITE_TO_SITE_PENDING_INTENTS";
+    public static final String PENDING_INTENT_REQUEST_CODE = "REQUEST_CODE";
 
     public static final String S2S_TABLE_NAME = "APACHE_NIFI_SITE_TO_SITE_LOG";
     public static final String S2S_TRANSACTION_RESULT_COLUMN = "TRANSACTION_RESULT";
@@ -60,6 +68,10 @@ public class DemoAppDB {
                                 CREATED_COLUMN + " INTEGER, " +
                                 S2S_TRANSACTION_RESULT_COLUMN + " BLOB, " +
                                 S2S_IO_EXCEPTION_COLUMN + " BLOB)");
+                        db.execSQL("CREATE TABLE " + PENDING_INTENT_TABLE_NAME + " (" +
+                                ID_COLUMN + " INTEGER PRIMARY KEY, " +
+                                PENDING_INTENT_REQUEST_CODE + " INTEGER, " +
+                                CONTENT_COLUMN + " BLOB)");
                     }
 
                     @Override
@@ -83,7 +95,7 @@ public class DemoAppDB {
             values.put(CREATED_COLUMN, transactionLogEntry.getCreated().getTime());
             values.put(S2S_TRANSACTION_RESULT_COLUMN, SerializationUtils.marshallParcelable(transactionLogEntry.getTransactionResult()));
             values.put(S2S_IO_EXCEPTION_COLUMN, SerializationUtils.marshallSerializable(transactionLogEntry.getIoException()));
-            transactionLogEntry.setId(writableDatabase.insert(S2S_TABLE_NAME, null, values));
+            transactionLogEntry.setId(writableDatabase.insertOrThrow(S2S_TABLE_NAME, null, values));
             context.sendBroadcast(new Intent(TRANSACTION_LOG_ENTRY_SAVED));
         } finally {
             writableDatabase.close();
@@ -119,5 +131,73 @@ public class DemoAppDB {
             readableDatabase.close();
         }
         return transactionLogEntries;
+    }
+
+
+    /**
+     * Saves the repeatable intent (useful for later cancelling an alarm after the application has restarted)
+     *
+     * @param siteToSiteRepeatableIntent the repeatable intent
+     */
+    public void save(SiteToSiteRepeatableIntent siteToSiteRepeatableIntent) {
+        Parcel parcel = Parcel.obtain();
+        siteToSiteRepeatableIntent.getIntent().writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+        byte[] bytes = parcel.marshall();
+        SQLiteDatabase writableDatabase = sqLiteOpenHelper.getWritableDatabase();
+        try {
+            ContentValues contentValues = new ContentValues();
+            contentValues.put(PENDING_INTENT_REQUEST_CODE, siteToSiteRepeatableIntent.getRequestCode());
+            contentValues.put(CONTENT_COLUMN, bytes);
+            writableDatabase.insertOrThrow(PENDING_INTENT_TABLE_NAME, null, contentValues);
+        } finally {
+            writableDatabase.close();
+        }
+    }
+
+    /**
+     * Deletes the pending intent with the given id
+     *
+     * @param id the id
+     */
+    public void deletePendingIntent(long id) {
+        SQLiteDatabase writableDatabase = sqLiteOpenHelper.getWritableDatabase();
+        try {
+            writableDatabase.delete(PENDING_INTENT_TABLE_NAME, "ID = ?",  new String[]{Long.toString(id)});
+        } finally {
+            writableDatabase.close();
+        }
+    }
+
+    /**
+     * Retreives all pending intents that have been saved
+     *
+     * @return the pending intents
+     */
+    public List<PendingIntentWrapper> getPendingIntents() {
+        List<PendingIntentWrapper> pendingIntents = new ArrayList<>();
+        SQLiteDatabase readableDatabase = sqLiteOpenHelper.getReadableDatabase();
+        try {
+            Cursor cursor = readableDatabase.query(false, PENDING_INTENT_TABLE_NAME, new String[]{ID_COLUMN, PENDING_INTENT_REQUEST_CODE, CONTENT_COLUMN}, null, null, null, null, null, null);
+            try {
+                int idIndex = cursor.getColumnIndexOrThrow(ID_COLUMN);
+                int requestCodeIndex = cursor.getColumnIndexOrThrow(PENDING_INTENT_REQUEST_CODE);
+                int contentIndex = cursor.getColumnIndexOrThrow(CONTENT_COLUMN);
+                while (cursor.moveToNext()) {
+                    Parcel parcel = Parcel.obtain();
+                    byte[] bytes = cursor.getBlob(contentIndex);
+                    parcel.unmarshall(bytes, 0, bytes.length);
+                    parcel.setDataPosition(0);
+                    int requestCode = cursor.getInt(requestCodeIndex);
+                    Intent intent = Intent.CREATOR.createFromParcel(parcel);
+                    pendingIntents.add(new PendingIntentWrapper(cursor.getLong(idIndex), PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_NO_CREATE)));
+                }
+            } finally {
+                cursor.close();
+            }
+        } finally {
+            readableDatabase.close();
+        }
+        return pendingIntents;
     }
 }

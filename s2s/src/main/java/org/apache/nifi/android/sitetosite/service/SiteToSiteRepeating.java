@@ -49,13 +49,16 @@ public class SiteToSiteRepeating extends WakefulBroadcastReceiver {
         IntentType intentType = getIntentType(intent);
         Parcelable callback = SerializationUtils.getParcelable(intent, SiteToSiteService.TRANSACTION_RESULT_CALLBACK);
         int requestCode = getRequestCode(intent);
-        Intent repeatingIntent = getIntent(context, intentType, dataCollector, siteToSiteClientConfig, requestCode, callback);
 
+        Intent repeatingIntent;
         Iterable<DataPacket> dataPackets = null;
         // Update the pending intent with any state change in data collector
         if (dataCollector != null) {
             dataPackets = dataCollector.getDataPackets();
+            repeatingIntent = getIntent(context, intentType, dataCollector, siteToSiteClientConfig, requestCode, callback);
             PendingIntent.getBroadcast(context, requestCode, repeatingIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        } else {
+            repeatingIntent = getIntent(context, intentType, dataCollector, siteToSiteClientConfig, requestCode, callback);
         }
 
         final Intent packetIntent;
@@ -132,15 +135,24 @@ public class SiteToSiteRepeating extends WakefulBroadcastReceiver {
     }
 
     static void updateIntentConfig(Context context, Intent intent, SiteToSiteClientConfig siteToSiteClientConfig) {
+        if (intent == null) {
+            return;
+        }
         int requestCode = getRequestCode(intent);
         DataCollector dataCollector = SerializationUtils.getParcelable(intent, DATA_COLLECTOR);
-        ParcelableTransactionResultCallback transactionResultCallback = SerializationUtils.getParcelable(intent, SiteToSiteService.TRANSACTION_RESULT_CALLBACK);
-        PendingIntent.getBroadcast(context, requestCode, getIntent(context, getIntentType(intent), dataCollector, siteToSiteClientConfig, requestCode, transactionResultCallback), PendingIntent.FLAG_UPDATE_CURRENT);
+        Parcelable resultCallback = SerializationUtils.getParcelable(intent, SiteToSiteService.TRANSACTION_RESULT_CALLBACK);
+        PendingIntent.getBroadcast(context, requestCode, getIntent(context, getIntentType(intent), dataCollector, siteToSiteClientConfig, requestCode, resultCallback), PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     private static Intent getIntent(Context context, IntentType intentType, DataCollector dataCollector, SiteToSiteClientConfig siteToSiteClientConfig, Integer requestCode, Parcelable transactionResultCallback) {
         Intent intent = new Intent(context, SiteToSiteRepeating.class);
-        intent.setExtrasClassLoader(dataCollector.getClass().getClassLoader());
+        if (dataCollector != null) {
+            intent.setExtrasClassLoader(dataCollector.getClass().getClassLoader());
+        } else if (transactionResultCallback != null) {
+            intent.setExtrasClassLoader(transactionResultCallback.getClass().getClassLoader());
+        } else {
+            intent.setExtrasClassLoader(siteToSiteClientConfig.getClass().getClassLoader());
+        }
         intent.putExtra(SiteToSiteService.INTENT_TYPE, intentType.name());
 
         if (requestCode == null) {

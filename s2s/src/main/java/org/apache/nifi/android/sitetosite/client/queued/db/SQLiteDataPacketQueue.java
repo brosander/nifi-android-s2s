@@ -98,6 +98,9 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
 
     @Override
     public void enqueue(Iterator<DataPacket> dataPackets) throws IOException {
+        if (!dataPackets.hasNext()) {
+            return;
+        }
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
         try {
             writableDatabase.beginTransaction();
@@ -121,7 +124,7 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
                     } else {
                         contentValues.put(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN, createdTime + ttl);
                     }
-                    writableDatabase.insert(DATA_PACKET_QUEUE_TABLE_NAME, null, contentValues);
+                    writableDatabase.insertOrThrow(DATA_PACKET_QUEUE_TABLE_NAME, null, contentValues);
                 }
                 writableDatabase.setTransactionSuccessful();
             } finally {
