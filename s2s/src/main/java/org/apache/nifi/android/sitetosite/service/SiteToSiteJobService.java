@@ -17,12 +17,16 @@
 
 package org.apache.nifi.android.sitetosite.service;
 
+import android.app.job.JobInfo;
 import android.app.job.JobParameters;
 import android.app.job.JobService;
+import android.content.ComponentName;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
+import android.os.PersistableBundle;
 import android.support.annotation.RequiresApi;
+import android.util.Log;
 
 import org.apache.nifi.android.sitetosite.client.QueuedSiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
@@ -32,14 +36,19 @@ import java.io.IOException;
 
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 public class SiteToSiteJobService extends JobService {
+
+    public static final String CANONICAL_NAME = SiteToSiteJobService.class.getCanonicalName();
+
     @Override
     public boolean onStartJob(final JobParameters params) {
         final Context applicationContext = getApplicationContext();
         final SiteToSiteDB siteToSiteDB = new SiteToSiteDB(applicationContext);
 
-        QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig = SerializationUtils.getParcelable(SiteToSiteJobService.class.getClassLoader(), params.getExtras(), "config");
+        PersistableBundle extras = params.getExtras();
+        QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig = SerializationUtils.getParcelable(SiteToSiteJobService.class.getClassLoader(), extras, "config");
         siteToSiteDB.updatePeerStatusOnConfig(queuedSiteToSiteClientConfig);
 
+        final ParcelableQueuedOperationResultCallback parcelableQueuedOperationResultCallback = SerializationUtils.getParcelable(SiteToSiteJobService.class.getClassLoader(), extras, "callback");
         SiteToSiteService.processQueuedPackets(applicationContext, queuedSiteToSiteClientConfig, new QueuedOperationResultCallback() {
             @Override
             public Handler getHandler() {
@@ -48,11 +57,17 @@ public class SiteToSiteJobService extends JobService {
 
             @Override
             public void onSuccess() {
+                if (parcelableQueuedOperationResultCallback != null) {
+                    parcelableQueuedOperationResultCallback.onSuccess(applicationContext);
+                }
                 jobFinished(params, false);
             }
 
             @Override
             public void onException(IOException exception) {
+                if (parcelableQueuedOperationResultCallback != null) {
+                    parcelableQueuedOperationResultCallback.onException(applicationContext, exception);
+                }
                 jobFinished(params, true);
             }
         });
@@ -61,6 +76,16 @@ public class SiteToSiteJobService extends JobService {
 
     @Override
     public boolean onStopJob(JobParameters params) {
+        Log.w(CANONICAL_NAME, "Getting stopped by JobScheduler.");
         return true;
+    }
+
+    public static JobInfo.Builder createProcessJobInfoBuilder(Context context, int jobId, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig, ParcelableQueuedOperationResultCallback parcelableQueuedOperationResultCallback) {
+        JobInfo.Builder builder = new JobInfo.Builder(jobId, new ComponentName(context, SiteToSiteJobService.class));
+        PersistableBundle persistableBundle = new PersistableBundle();
+        SerializationUtils.putParcelable(queuedSiteToSiteClientConfig, persistableBundle, "config");
+        SerializationUtils.putParcelable(parcelableQueuedOperationResultCallback, persistableBundle, "callback");
+        builder.setExtras(persistableBundle);
+        return builder;
     }
 }
