@@ -59,7 +59,7 @@ public class SiteToSiteServiceTest {
     @Before
     public void setup() throws IOException {
         context = InstrumentationRegistry.getContext();
-        siteToSiteDB = SQLiteDataPacketQueueTest.getSiteToSiteDBWithCleanDataPacketQueue(context);
+        siteToSiteDB = SQLiteDataPacketQueueTest.getCleanSiteToSiteDB(context);
 
         mockNiFiS2SServer = new MockNiFiS2SServer();
         portIdentifier = "testPortIdentifier";
@@ -85,7 +85,6 @@ public class SiteToSiteServiceTest {
 
         SiteToSiteService.sendDataPacket(context, dataPacket, siteToSiteClientConfig, transactionResultCallback);
         assertNull(transactionResultCallback.getIOException());
-        assertEquals(siteToSiteClientConfig.getUrls(), transactionResultCallback.getSiteToSiteClientConfig().getUrls());
         resetQueuedCallback();
 
         mockNiFiS2SServer.verifyAssertions();
@@ -105,7 +104,6 @@ public class SiteToSiteServiceTest {
 
         SiteToSiteService.sendDataPackets(context, dataPackets, siteToSiteClientConfig, transactionResultCallback);
         assertNull(transactionResultCallback.getIOException());
-        assertEquals(siteToSiteClientConfig.getUrls(), transactionResultCallback.getSiteToSiteClientConfig().getUrls());
         resetQueuedCallback();
 
         mockNiFiS2SServer.verifyAssertions();
@@ -115,8 +113,6 @@ public class SiteToSiteServiceTest {
     public void testSendNoPackets() throws Exception {
         SiteToSiteService.sendDataPackets(context, Collections.<DataPacket>emptyList(), siteToSiteClientConfig, transactionResultCallback);
         assertNull(transactionResultCallback.getIOException());
-        assertEquals(siteToSiteClientConfig.getUrls(), transactionResultCallback.getSiteToSiteClientConfig().getUrls());
-        resetQueuedCallback();
 
         mockNiFiS2SServer.verifyAssertions();
     }
@@ -125,13 +121,11 @@ public class SiteToSiteServiceTest {
     public void testNoQueuedPackets() throws Exception {
         SiteToSiteService.enqueueDataPackets(context, Collections.<DataPacket>emptyList(), queuedSiteToSiteClientConfig, queuedOperationResultCallback);
         assertNull(queuedOperationResultCallback.getIOException());
-        assertEquals(queuedSiteToSiteClientConfig.getUrls(), queuedOperationResultCallback.getQueuedSiteToSiteClientConfig().getUrls());
         resetQueuedCallback();
         assertNoQueuedPackets();
 
         SiteToSiteService.processQueuedPackets(context, queuedSiteToSiteClientConfig, queuedOperationResultCallback);
         assertNull(queuedOperationResultCallback.getIOException());
-        assertEquals(queuedSiteToSiteClientConfig.getUrls(), queuedOperationResultCallback.getQueuedSiteToSiteClientConfig().getUrls());
 
         mockNiFiS2SServer.verifyAssertions();
         assertNoQueuedPackets();
@@ -143,7 +137,6 @@ public class SiteToSiteServiceTest {
 
         SiteToSiteService.enqueueDataPacket(context, dataPacket, queuedSiteToSiteClientConfig, queuedOperationResultCallback);
         assertNull(queuedOperationResultCallback.getIOException());
-        assertEquals(queuedSiteToSiteClientConfig.getUrls(), queuedOperationResultCallback.getQueuedSiteToSiteClientConfig().getUrls());
         resetQueuedCallback();
 
         mockNiFiS2SServer.enqueueSiteToSitePeers(Collections.singletonList(peer));
@@ -153,7 +146,6 @@ public class SiteToSiteServiceTest {
 
         SiteToSiteService.processQueuedPackets(context, queuedSiteToSiteClientConfig, queuedOperationResultCallback);
         assertNull(queuedOperationResultCallback.getIOException());
-        assertEquals(queuedSiteToSiteClientConfig.getUrls(), queuedOperationResultCallback.getQueuedSiteToSiteClientConfig().getUrls());
 
         mockNiFiS2SServer.verifyAssertions();
         assertNoQueuedPackets();
@@ -171,7 +163,6 @@ public class SiteToSiteServiceTest {
             }
             SiteToSiteService.enqueueDataPackets(context, dataPackets, queuedSiteToSiteClientConfig, queuedOperationResultCallback);
             assertNull(queuedOperationResultCallback.getIOException());
-            assertEquals(queuedSiteToSiteClientConfig.getUrls(), queuedOperationResultCallback.getQueuedSiteToSiteClientConfig().getUrls());
             resetQueuedCallback();
         }
 
@@ -179,7 +170,6 @@ public class SiteToSiteServiceTest {
 
         SiteToSiteService.cleanupQueuedPackets(context, queuedSiteToSiteClientConfig, queuedOperationResultCallback);
         assertNull(queuedOperationResultCallback.getIOException());
-        assertEquals(queuedSiteToSiteClientConfig.getUrls(), queuedOperationResultCallback.getQueuedSiteToSiteClientConfig().getUrls());
         resetQueuedCallback();
 
         assertEquals(10, getQueuedPacketCount());
@@ -192,7 +182,6 @@ public class SiteToSiteServiceTest {
 
         SiteToSiteService.processQueuedPackets(context, queuedSiteToSiteClientConfig, queuedOperationResultCallback);
         assertNull(queuedOperationResultCallback.getIOException());
-        assertEquals(queuedSiteToSiteClientConfig.getUrls(), queuedOperationResultCallback.getQueuedSiteToSiteClientConfig().getUrls());
 
         mockNiFiS2SServer.verifyAssertions();
         assertNoQueuedPackets();

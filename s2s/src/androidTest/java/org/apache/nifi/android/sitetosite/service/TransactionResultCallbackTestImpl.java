@@ -19,7 +19,6 @@ package org.apache.nifi.android.sitetosite.service;
 
 import android.os.Handler;
 
-import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 
 import java.io.IOException;
@@ -31,7 +30,6 @@ import static org.junit.Assert.assertNull;
 public class TransactionResultCallbackTestImpl implements TransactionResultCallback {
     private final Handler handler;
     private final AtomicReference<TransactionResult> transactionResultAtomicReference = new AtomicReference<>();
-    private final AtomicReference<SiteToSiteClientConfig> siteToSiteClientConfigAtomicReference = new AtomicReference<>();
     private final AtomicReference<IOException> ioExceptionAtomicReference = new AtomicReference<>();
     private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
@@ -49,26 +47,20 @@ public class TransactionResultCallbackTestImpl implements TransactionResultCallb
     }
 
     @Override
-    public void onSuccess(TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
+    public void onSuccess(TransactionResult transactionResult) {
         assertNull(transactionResultAtomicReference.getAndSet(transactionResult));
-        assertNull(siteToSiteClientConfigAtomicReference.getAndSet(siteToSiteClientConfig));
         countDownLatch.countDown();
     }
 
     @Override
-    public void onException(IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
+    public void onException(IOException exception) {
         assertNull(ioExceptionAtomicReference.getAndSet(exception));
-        onSuccess(null, siteToSiteClientConfig);
+        onSuccess(null);
     }
 
     public TransactionResult getTransactionResult() throws InterruptedException {
         countDownLatch.await();
         return transactionResultAtomicReference.get();
-    }
-
-    public SiteToSiteClientConfig getSiteToSiteClientConfig() throws InterruptedException {
-        countDownLatch.await();
-        return siteToSiteClientConfigAtomicReference.get();
     }
 
     public IOException getIOException() throws InterruptedException {

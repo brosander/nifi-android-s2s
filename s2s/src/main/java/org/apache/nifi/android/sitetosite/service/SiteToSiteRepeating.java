@@ -38,7 +38,6 @@ import java.util.Random;
 public class SiteToSiteRepeating extends WakefulBroadcastReceiver {
     public static final String DATA_COLLECTOR = "DATA_COLLECTOR";
     public static final String REQUEST_CODE = "REQUEST_CODE";
-    public static final String REPEATING_INTENT = "REPEATING_INTENT";
     private static final Random random = new Random();
 
     @Override
@@ -71,13 +70,13 @@ public class SiteToSiteRepeating extends WakefulBroadcastReceiver {
                 }
 
                 @Override
-                public void onSuccess(TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
-                    transactionResultCallback.onSuccess(context, transactionResult, siteToSiteClientConfig);
+                public void onSuccess(TransactionResult transactionResult) {
+                    transactionResultCallback.onSuccess(context, transactionResult);
                 }
 
                 @Override
-                public void onException(IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
-                    transactionResultCallback.onException(context, exception, siteToSiteClientConfig);
+                public void onException(IOException exception) {
+                    transactionResultCallback.onException(context, exception);
                 }
             }, true);
         } else {
@@ -89,17 +88,16 @@ public class SiteToSiteRepeating extends WakefulBroadcastReceiver {
                 }
 
                 @Override
-                public void onSuccess(QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) {
-                    parcelableQueuedOperationResultCallback.onSuccess(context, queuedSiteToSiteClientConfig);
+                public void onSuccess() {
+                    parcelableQueuedOperationResultCallback.onSuccess(context);
                 }
 
                 @Override
-                public void onException(IOException exception, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) {
-                    parcelableQueuedOperationResultCallback.onException(context, exception, queuedSiteToSiteClientConfig);
+                public void onException(IOException exception) {
+                    parcelableQueuedOperationResultCallback.onException(context, exception);
                 }
             }, true);
         }
-        SerializationUtils.putParcelable(repeatingIntent, packetIntent, REPEATING_INTENT);
         startWakefulService(context, packetIntent);
     }
 
@@ -132,16 +130,6 @@ public class SiteToSiteRepeating extends WakefulBroadcastReceiver {
         Intent intent = getIntent(context, intentType, dataCollector, siteToSiteClientConfig, null, parcelableTransactionResultCallback);
         int requestCode = getRequestCode(intent);
         return new SiteToSiteRepeatableIntent(requestCode, intent, PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT));
-    }
-
-    static void updateIntentConfig(Context context, Intent intent, SiteToSiteClientConfig siteToSiteClientConfig) {
-        if (intent == null) {
-            return;
-        }
-        int requestCode = getRequestCode(intent);
-        DataCollector dataCollector = SerializationUtils.getParcelable(intent, DATA_COLLECTOR);
-        Parcelable resultCallback = SerializationUtils.getParcelable(intent, SiteToSiteService.TRANSACTION_RESULT_CALLBACK);
-        PendingIntent.getBroadcast(context, requestCode, getIntent(context, getIntentType(intent), dataCollector, siteToSiteClientConfig, requestCode, resultCallback), PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     private static Intent getIntent(Context context, IntentType intentType, DataCollector dataCollector, SiteToSiteClientConfig siteToSiteClientConfig, Integer requestCode, Parcelable transactionResultCallback) {

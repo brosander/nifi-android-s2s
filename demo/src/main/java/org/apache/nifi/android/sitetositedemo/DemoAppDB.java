@@ -27,7 +27,6 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Parcel;
 
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
-import org.apache.nifi.android.sitetosite.client.persistence.PendingIntentWrapper;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeatableIntent;
 import org.apache.nifi.android.sitetosite.util.SerializationUtils;
 

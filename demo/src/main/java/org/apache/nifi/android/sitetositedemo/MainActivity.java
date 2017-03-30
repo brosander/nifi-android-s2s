@@ -41,8 +41,6 @@ import android.widget.TextView;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
-import org.apache.nifi.android.sitetosite.client.peer.PeerStatus;
-import org.apache.nifi.android.sitetosite.client.persistence.PendingIntentWrapper;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeatableIntent;
@@ -66,7 +64,6 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
     public static final String LINE_SEPARATOR = System.getProperty("line.separator");
     private final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private SiteToSiteDB siteToSiteDB;
     private DemoAppDB demoAppDB;
     private long lastTimestamp = 0;
 
@@ -81,7 +78,6 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
             edit.commit();
         }
         setContentView(R.layout.activity_main);
-        siteToSiteDB = new SiteToSiteDB(getApplicationContext());
         demoAppDB = new DemoAppDB(getApplicationContext());
         TextView sendResults = (TextView) findViewById(R.id.sendResults);
         sendResults.setMovementMethod(new ScrollingMovementMethod());
@@ -132,15 +128,13 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
             }
 
             @Override
-            public void onSuccess(TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
+            public void onSuccess(TransactionResult transactionResult) {
                 demoAppDB.save(new TransactionLogEntry(transactionResult));
-                siteToSiteDB.save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
             }
 
             @Override
-            public void onException(IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
+            public void onException(IOException exception) {
                 demoAppDB.save(new TransactionLogEntry(exception));
-                siteToSiteDB.save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
             }
         });
     }
@@ -182,11 +176,6 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
         siteToSiteClientConfig.setTruststoreFilename("classpath:truststore.bks");
         siteToSiteClientConfig.setTruststoreType("BKS");
         siteToSiteClientConfig.setTruststorePassword("Kr6ut7JD7DOxnquDhesorRAruHpRElS/lpzXWIt0e+M");
-
-        PeerStatus peerStatus = siteToSiteDB.getPeerStatus(peerUrls, proxyHost, proxyPort);
-        if (peerStatus != null) {
-            siteToSiteClientConfig.setPeerStatus(peerStatus);
-        }
 
         return siteToSiteClientConfig;
     }

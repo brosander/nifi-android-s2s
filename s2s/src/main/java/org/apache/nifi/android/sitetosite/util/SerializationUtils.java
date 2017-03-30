@@ -19,8 +19,12 @@ package org.apache.nifi.android.sitetosite.util;
 
 import android.content.Intent;
 import android.os.BadParcelableException;
+import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.os.PersistableBundle;
+import android.support.annotation.RequiresApi;
+import android.util.Base64;
 
 import java.io.Serializable;
 
@@ -164,5 +168,30 @@ public class SerializationUtils {
         } catch (Exception e) {
             throw new BadParcelableException(e);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    public static <T extends Parcelable> T getParcelable(ClassLoader classLoader, PersistableBundle persistableBundle, String name) {
+        PersistableBundle bundle = persistableBundle.getPersistableBundle(name);
+        if (bundle == null) {
+            return null;
+        }
+        try {
+            return unmarshallParcelable(Base64.decode(bundle.getString("data"), 0), (Class<T>) Class.forName(bundle.getString("class"), true, classLoader));
+        } catch (ClassNotFoundException e) {
+            throw new BadParcelableException(e);
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    public static <T extends Parcelable> void putParcelable(T parcelable, PersistableBundle persistableBundle, String name) {
+        if (parcelable == null) {
+            return;
+        }
+        PersistableBundle bundle = new PersistableBundle();
+        bundle.putString("class", parcelable.getClass().getCanonicalName());
+        bundle.putString("data", Base64.encodeToString(marshallParcelable(parcelable), 0));
+        persistableBundle.putPersistableBundle(name, bundle);
     }
 }

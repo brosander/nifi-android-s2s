@@ -34,16 +34,14 @@ public interface ParcelableQueuedOperationResultCallback extends Parcelable {
      * Success callback
      *
      * @param context the context
-     * @param queuedSiteToSiteClientConfig the (possibly updated) s2s config
      */
-    void onSuccess(Context context, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig);
+    void onSuccess(Context context);
 
     /**
      * Failure callback
      *
      * @param context the context
      * @param exception the exception
-     * @param queuedSiteToSiteClientConfig the (possibly updated) s2s config
      */
-    void onException(Context context, IOException exception, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig);
+    void onException(Context context, IOException exception);
 }

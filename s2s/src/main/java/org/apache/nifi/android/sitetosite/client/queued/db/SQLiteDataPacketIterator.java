@@ -38,7 +38,7 @@ import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.CREATED_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QEUE_PRIORITY_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN;
-import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN;
+import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.EXPIRATION_MILLIS_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TRANSACTION_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.ID_COLUMN;
@@ -49,7 +49,7 @@ public class SQLiteDataPacketIterator {
             .append(" SET ").append(DATA_PACKET_QUEUE_TRANSACTION_COLUMN).append(" = ?")
             .append(" WHERE ").append(ID_COLUMN).append(" IN ")
             .append("(SELECT ").append(ID_COLUMN).append(" FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME)
-            .append(" WHERE ").append(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN).append(" > ?")
+            .append(" WHERE ").append(EXPIRATION_MILLIS_COLUMN).append(" > ?")
             .append(" AND ").append(DATA_PACKET_QUEUE_TRANSACTION_COLUMN).append(" IS NULL")
             .append(" ORDER BY ").append(DATA_PACKET_QEUE_PRIORITY_COLUMN).append(" DESC, ").append(CREATED_COLUMN).append(" DESC, ").append(ID_COLUMN).append(" DESC")
             .append(" LIMIT ?)").toString();

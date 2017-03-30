@@ -21,7 +21,6 @@ import android.content.Context;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 
 import java.io.IOException;
@@ -62,14 +61,14 @@ public class ParcelableTransactionResultCallbackTestImpl implements ParcelableTr
     }
 
     @Override
-    public void onSuccess(Context context, TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
-        invocations.get(uuid).offer(new Invocation(Type.SUCCESS, transactionResult, siteToSiteClientConfig, null));
+    public void onSuccess(Context context, TransactionResult transactionResult) {
+        invocations.get(uuid).offer(new Invocation(Type.SUCCESS, transactionResult, null));
         countDownLatches.get(uuid).countDown();
     }
 
     @Override
-    public void onException(Context context, IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
-        invocations.get(uuid).offer(new Invocation(Type.FAILURE, null, siteToSiteClientConfig, exception));
+    public void onException(Context context, IOException exception) {
+        invocations.get(uuid).offer(new Invocation(Type.FAILURE, null, exception));
         countDownLatches.get(uuid).countDown();
     }
 
@@ -104,13 +103,12 @@ public class ParcelableTransactionResultCallbackTestImpl implements ParcelableTr
     public static class Invocation implements Parcelable {
         private final Type type;
         private final TransactionResult transactionResult;
-        private final SiteToSiteClientConfig siteToSiteClientConfig;
         private final IOException ioException;
 
         public static final Creator<Invocation> CREATOR = new Creator<Invocation>() {
             @Override
             public Invocation createFromParcel(Parcel source) {
-                return new Invocation(Type.valueOf(source.readString()), source.<TransactionResult>readParcelable(ParcelableTransactionResultCallbackTestImpl.class.getClassLoader()), source.<SiteToSiteClientConfig>readParcelable(ParcelableTransactionResultCallbackTestImpl.class.getClassLoader()), (IOException)source.readSerializable());
+                return new Invocation(Type.valueOf(source.readString()), source.<TransactionResult>readParcelable(ParcelableTransactionResultCallbackTestImpl.class.getClassLoader()), (IOException)source.readSerializable());
             }
 
             @Override
@@ -119,19 +117,14 @@ public class ParcelableTransactionResultCallbackTestImpl implements ParcelableTr
             }
         };
 
-        public Invocation(Type type, TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig, IOException ioException) {
+        public Invocation(Type type, TransactionResult transactionResult, IOException ioException) {
             this.type = type;
             this.transactionResult = transactionResult;
-            this.siteToSiteClientConfig = siteToSiteClientConfig;
             this.ioException = ioException;
         }
 
         public Type getType() {
             return type;
-        }
-
-        public SiteToSiteClientConfig getSiteToSiteClientConfig() {
-            return siteToSiteClientConfig;
         }
 
         public IOException getIoException() {
@@ -151,7 +144,6 @@ public class ParcelableTransactionResultCallbackTestImpl implements ParcelableTr
         public void writeToParcel(Parcel dest, int flags) {
             dest.writeString(type.name());
             dest.writeParcelable(transactionResult, 0);
-            dest.writeParcelable(siteToSiteClientConfig, 0);
             dest.writeSerializable(ioException);
         }
     }

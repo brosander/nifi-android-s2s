@@ -63,7 +63,7 @@ public class SQLiteDataPacketQueueTest {
 
     @Before
     public void setup() {
-        siteToSiteDB = getSiteToSiteDBWithCleanDataPacketQueue(InstrumentationRegistry.getContext());
+        siteToSiteDB = getCleanSiteToSiteDB(InstrumentationRegistry.getContext());
         siteToSiteClient = new TestSiteToSiteClient();
         sqLiteDataPacketQueue = new SQLiteDataPacketQueue(new SiteToSiteClientConfig(){
             @Override
@@ -74,11 +74,12 @@ public class SQLiteDataPacketQueueTest {
         testTransactionId = "testTransactionId";
     }
 
-    public static SiteToSiteDB getSiteToSiteDBWithCleanDataPacketQueue(Context context) {
+    public static SiteToSiteDB getCleanSiteToSiteDB(Context context) {
         SiteToSiteDB siteToSiteDB = new SiteToSiteDB(context);
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
         try {
             writableDatabase.delete(SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME, null, null);
+            writableDatabase.delete(SiteToSiteDB.PEER_STATUSES_TABLE_NAME, null, null);
         } finally {
             writableDatabase.close();
         }

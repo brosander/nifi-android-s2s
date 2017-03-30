@@ -31,6 +31,7 @@ import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.Transaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
+import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
 import org.apache.nifi.android.sitetosite.util.SerializationUtils;
@@ -131,12 +132,14 @@ public class SiteToSiteService extends IntentService {
                 WakefulBroadcastReceiver.completeWakefulIntent(intent);
             }
             IntentType intentType = IntentType.valueOf(intent.getStringExtra(INTENT_TYPE));
-            Intent repeatingIntent = SerializationUtils.getParcelable(intent, SiteToSiteRepeating.REPEATING_INTENT);
+            Context context = getApplicationContext();
+            SiteToSiteDB siteToSiteDB = new SiteToSiteDB(context);
             if (intentType.isQueueOperation()) {
                 ResultReceiver queuedOperationResultCallback = intent.getExtras().getParcelable(TRANSACTION_RESULT_CALLBACK);
                 QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig = SerializationUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
                 try {
-                    QueuedSiteToSiteClient queuedSiteToSiteClient = queuedSiteToSiteClientConfig.getQueuedSiteToSiteClient(getApplicationContext());
+                    QueuedSiteToSiteClient queuedSiteToSiteClient = queuedSiteToSiteClientConfig.getQueuedSiteToSiteClient(context);
+                    siteToSiteDB.updatePeerStatusOnConfig(queuedSiteToSiteClientConfig);
                     if (intentType == IntentType.ENQUEUE) {
                         List<DataPacket> packets = intent.getExtras().getParcelableArrayList(DATA_PACKETS);
                         if (packets.size() > 0) {
@@ -144,26 +147,25 @@ public class SiteToSiteService extends IntentService {
                         }
                     } else if (intentType == IntentType.PROCESS) {
                         queuedSiteToSiteClient.process();
+                        siteToSiteDB.savePeerStatus(queuedSiteToSiteClientConfig);
                     } else if (intentType == IntentType.CLEANUP) {
                         queuedSiteToSiteClient.cleanup();
                     } else {
                         Log.e(CANONICAL_NAME, "Unexpected intent type: " + intentType);
                     }
-                    SiteToSiteRepeating.updateIntentConfig(getApplicationContext(), repeatingIntent, queuedSiteToSiteClientConfig);
-                    QueuedOperationResultCallback.Receiver.onSuccess(queuedOperationResultCallback, queuedSiteToSiteClientConfig);
+                    QueuedOperationResultCallback.Receiver.onSuccess(queuedOperationResultCallback);
                 } catch (IOException e) {
                     Log.d(CANONICAL_NAME, "Performing queue operation.", e);
-                    if (queuedOperationResultCallback != null) {
-                        SiteToSiteRepeating.updateIntentConfig(getApplicationContext(), repeatingIntent, queuedSiteToSiteClientConfig);
-                        QueuedOperationResultCallback.Receiver.onException(queuedOperationResultCallback, e, queuedSiteToSiteClientConfig);
+                    if (intentType == IntentType.PROCESS) {
+                        siteToSiteDB.savePeerStatus(queuedSiteToSiteClientConfig);
                     }
-                } finally {
-
+                    QueuedOperationResultCallback.Receiver.onException(queuedOperationResultCallback, e);
                 }
             } else if (intentType == IntentType.SEND) {
                 List<DataPacket> packets = intent.getExtras().getParcelableArrayList(DATA_PACKETS);
                 ResultReceiver transactionResultCallback = intent.getExtras().getParcelable(TRANSACTION_RESULT_CALLBACK);
                 SiteToSiteClientConfig siteToSiteClientConfig = SerializationUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
+                siteToSiteDB.updatePeerStatusOnConfig(siteToSiteClientConfig);
                 if (packets.size() > 0) {
                     try {
                         SiteToSiteClient client = siteToSiteClientConfig.createClient();
@@ -173,19 +175,19 @@ public class SiteToSiteService extends IntentService {
                         }
                         transaction.confirm();
                         TransactionResult transactionResult = transaction.complete();
+                        siteToSiteDB.savePeerStatus(siteToSiteClientConfig);
                         if (transactionResultCallback != null) {
-                            SiteToSiteRepeating.updateIntentConfig(getApplicationContext(), repeatingIntent, siteToSiteClientConfig);
-                            TransactionResultCallback.Receiver.onSuccess(transactionResultCallback, transactionResult, siteToSiteClientConfig);
+                            TransactionResultCallback.Receiver.onSuccess(transactionResultCallback, transactionResult);
                         }
                     } catch (IOException e) {
                         Log.d(CANONICAL_NAME, "Error sending packets.", e);
                         if (transactionResultCallback != null) {
-                            SiteToSiteRepeating.updateIntentConfig(getApplicationContext(), repeatingIntent, siteToSiteClientConfig);
-                            TransactionResultCallback.Receiver.onException(transactionResultCallback, e, siteToSiteClientConfig);
+                            siteToSiteDB.savePeerStatus(siteToSiteClientConfig);
+                            TransactionResultCallback.Receiver.onException(transactionResultCallback, e);
                         }
                     }
                 } else {
-                    TransactionResultCallback.Receiver.onSuccess(transactionResultCallback, new TransactionResult(0, ResponseCode.CONFIRM_TRANSACTION, "No-op due to empty packet list."), siteToSiteClientConfig);
+                    TransactionResultCallback.Receiver.onSuccess(transactionResultCallback, new TransactionResult(0, ResponseCode.CONFIRM_TRANSACTION, "No-op due to empty packet list."));
                 }
             }
         } catch (Exception e) {

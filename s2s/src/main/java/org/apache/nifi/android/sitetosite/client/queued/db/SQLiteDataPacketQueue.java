@@ -50,7 +50,7 @@ import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.CREATED_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QEUE_PRIORITY_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN;
-import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN;
+import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.EXPIRATION_MILLIS_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.ID_COLUMN;
 
@@ -120,9 +120,9 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
                     }
                     long ttl = dataPacketPrioritizer.getTtl(dataPacket);
                     if (ttl < 0) {
-                        contentValues.put(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN, Long.MAX_VALUE);
+                        contentValues.put(EXPIRATION_MILLIS_COLUMN, Long.MAX_VALUE);
                     } else {
-                        contentValues.put(DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN, createdTime + ttl);
+                        contentValues.put(EXPIRATION_MILLIS_COLUMN, createdTime + ttl);
                     }
                     writableDatabase.insertOrThrow(DATA_PACKET_QUEUE_TABLE_NAME, null, contentValues);
                 }
@@ -166,7 +166,7 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
     }
 
     protected void ageOffTtl(SQLiteDatabase writableDatabase) {
-        writableDatabase.execSQL("DELETE FROM " + DATA_PACKET_QUEUE_TABLE_NAME + " WHERE " + DATA_PACKET_QUEUE_EXPIRATION_MILLIS_COLUMN + " <= ?", new Object[]{new Date().getTime()});
+        writableDatabase.execSQL("DELETE FROM " + DATA_PACKET_QUEUE_TABLE_NAME + " WHERE " + EXPIRATION_MILLIS_COLUMN + " <= ?", new Object[]{new Date().getTime()});
     }
 
     protected void ageOffRowCount(SQLiteDatabase writableDatabase) {

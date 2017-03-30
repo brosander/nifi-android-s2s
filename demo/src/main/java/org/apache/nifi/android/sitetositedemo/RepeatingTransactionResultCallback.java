@@ -20,9 +20,7 @@ package org.apache.nifi.android.sitetositedemo;
 import android.content.Context;
 import android.os.Parcel;
 
-import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
-import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.service.ParcelableTransactionResultCallback;
 
 import java.io.IOException;
@@ -51,14 +49,12 @@ public class RepeatingTransactionResultCallback implements ParcelableTransaction
     }
 
     @Override
-    public void onSuccess(Context context, TransactionResult transactionResult, SiteToSiteClientConfig siteToSiteClientConfig) {
+    public void onSuccess(Context context, TransactionResult transactionResult) {
         new DemoAppDB(context).save(new TransactionLogEntry(transactionResult));
-        new SiteToSiteDB(context).save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
     }
 
     @Override
-    public void onException(Context context, IOException exception, SiteToSiteClientConfig siteToSiteClientConfig) {
+    public void onException(Context context, IOException exception) {
         new DemoAppDB(context).save(new TransactionLogEntry(exception));
-        new SiteToSiteDB(context).save(siteToSiteClientConfig.getUrls(), siteToSiteClientConfig.getProxyHost(), siteToSiteClientConfig.getProxyPort(), siteToSiteClientConfig.getPeerStatus());
     }
 }

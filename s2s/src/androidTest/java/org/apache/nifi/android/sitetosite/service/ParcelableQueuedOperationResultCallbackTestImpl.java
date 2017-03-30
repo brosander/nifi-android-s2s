@@ -21,8 +21,6 @@ import android.content.Context;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import org.apache.nifi.android.sitetosite.client.QueuedSiteToSiteClientConfig;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,14 +60,14 @@ public class ParcelableQueuedOperationResultCallbackTestImpl implements Parcelab
     }
 
     @Override
-    public void onSuccess(Context context, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) {
-        invocations.get(uuid).offer(new Invocation(Type.SUCCESS, queuedSiteToSiteClientConfig, null));
+    public void onSuccess(Context context) {
+        invocations.get(uuid).offer(new Invocation(Type.SUCCESS, null));
         countDownLatches.get(uuid).countDown();
     }
 
     @Override
-    public void onException(Context context, IOException exception, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) {
-        invocations.get(uuid).offer(new Invocation(Type.FAILURE, queuedSiteToSiteClientConfig, exception));
+    public void onException(Context context, IOException exception) {
+        invocations.get(uuid).offer(new Invocation(Type.FAILURE, exception));
         countDownLatches.get(uuid).countDown();
     }
 
@@ -103,13 +101,12 @@ public class ParcelableQueuedOperationResultCallbackTestImpl implements Parcelab
 
     public static class Invocation implements Parcelable {
         private final Type type;
-        private final QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig;
         private final IOException ioException;
 
         public static final Creator<Invocation> CREATOR = new Creator<Invocation>() {
             @Override
             public Invocation createFromParcel(Parcel source) {
-                return new Invocation(Type.valueOf(source.readString()), source.<QueuedSiteToSiteClientConfig>readParcelable(ParcelableQueuedOperationResultCallbackTestImpl.class.getClassLoader()), (IOException)source.readSerializable());
+                return new Invocation(Type.valueOf(source.readString()), (IOException)source.readSerializable());
             }
 
             @Override
@@ -118,18 +115,13 @@ public class ParcelableQueuedOperationResultCallbackTestImpl implements Parcelab
             }
         };
 
-        public Invocation(Type type, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig, IOException ioException) {
+        public Invocation(Type type, IOException ioException) {
             this.type = type;
-            this.queuedSiteToSiteClientConfig = queuedSiteToSiteClientConfig;
             this.ioException = ioException;
         }
 
         public Type getType() {
             return type;
-        }
-
-        public QueuedSiteToSiteClientConfig getQueuedSiteToSiteClientConfig() {
-            return queuedSiteToSiteClientConfig;
         }
 
         public IOException getIoException() {
@@ -144,7 +136,6 @@ public class ParcelableQueuedOperationResultCallbackTestImpl implements Parcelab
         @Override
         public void writeToParcel(Parcel dest, int flags) {
             dest.writeString(type.name());
-            dest.writeParcelable(queuedSiteToSiteClientConfig, 0);
             dest.writeSerializable(ioException);
         }
     }

@@ -19,8 +19,6 @@ package org.apache.nifi.android.sitetosite.service;
 
 import android.os.Handler;
 
-import org.apache.nifi.android.sitetosite.client.QueuedSiteToSiteClientConfig;
-
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -29,7 +27,6 @@ import static org.junit.Assert.assertNull;
 
 public class QueuedOperationResultCallbackTestImpl implements QueuedOperationResultCallback {
     private final Handler handler;
-    private final AtomicReference<QueuedSiteToSiteClientConfig> queuedSiteToSiteClientConfigAtomicReference = new AtomicReference<>();
     private final AtomicReference<IOException> ioExceptionAtomicReference = new AtomicReference<>();
     private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
@@ -47,20 +44,14 @@ public class QueuedOperationResultCallbackTestImpl implements QueuedOperationRes
     }
 
     @Override
-    public void onSuccess(QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) {
-        assertNull(queuedSiteToSiteClientConfigAtomicReference.getAndSet(queuedSiteToSiteClientConfig));
+    public void onSuccess() {
         countDownLatch.countDown();
     }
 
     @Override
-    public void onException(IOException exception, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) {
+    public void onException(IOException exception) {
         assertNull(ioExceptionAtomicReference.getAndSet(exception));
-        onSuccess(queuedSiteToSiteClientConfig);
-    }
-
-    public QueuedSiteToSiteClientConfig getQueuedSiteToSiteClientConfig() throws InterruptedException {
-        countDownLatch.await();
-        return queuedSiteToSiteClientConfigAtomicReference.get();
+        countDownLatch.countDown();
     }
 
     public IOException getIOException() throws InterruptedException {
