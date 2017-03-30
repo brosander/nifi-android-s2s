@@ -21,8 +21,6 @@ import android.app.PendingIntent;
 import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.content.Context;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Build;
 import android.support.annotation.RequiresApi;
 import android.support.test.InstrumentationRegistry;
@@ -30,8 +28,8 @@ import android.support.test.InstrumentationRegistry;
 import org.apache.nifi.android.sitetosite.client.QueuedSiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.peer.Peer;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
+import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDBTestUtil;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
-import org.apache.nifi.android.sitetosite.client.queued.db.SQLiteDataPacketQueueTest;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
 import org.apache.nifi.android.sitetosite.util.Charsets;
@@ -45,7 +43,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 public class SiteToSiteJobServiceTest {
@@ -61,7 +58,7 @@ public class SiteToSiteJobServiceTest {
     @Before
     public void setup() throws IOException {
         context = InstrumentationRegistry.getContext();
-        siteToSiteDB = SQLiteDataPacketQueueTest.getCleanSiteToSiteDB(context);
+        siteToSiteDB = SiteToSiteDBTestUtil.getCleanSiteToSiteDB(context);
 
         mockNiFiS2SServer = new MockNiFiS2SServer();
         portIdentifier = "testPortIdentifier";
@@ -71,7 +68,8 @@ public class SiteToSiteJobServiceTest {
         queuedSiteToSiteClientConfig = new QueuedSiteToSiteClientConfig();
         queuedSiteToSiteClientConfig.setPortIdentifier(portIdentifier);
         queuedSiteToSiteClientConfig.setUrls(Collections.singleton(mockNiFiS2SServer.getNifiApiUrl()));
-        resetCallbacks();
+
+        parcelableQueuedOperationResultCallback = new ParcelableQueuedOperationResultCallbackTestImpl();
     }
 
     @Test(timeout = 5000)
@@ -81,7 +79,7 @@ public class SiteToSiteJobServiceTest {
         JobScheduler jobScheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         assertEquals(JobScheduler.RESULT_SUCCESS, jobScheduler.schedule(processJobInfoBuilder.build()));
         assertEquals(1, parcelableQueuedOperationResultCallback.getInvocations().size());
-        assertNoQueuedPackets();
+        SiteToSiteDBTestUtil.assertNoQueuedPackets(siteToSiteDB);
     }
 
     @Test(timeout = 5000)
@@ -99,7 +97,7 @@ public class SiteToSiteJobServiceTest {
         JobScheduler jobScheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         assertEquals(JobScheduler.RESULT_SUCCESS, jobScheduler.schedule(processJobInfoBuilder.build()));
         assertEquals(1, parcelableQueuedOperationResultCallback.getInvocations().size());
-        assertNoQueuedPackets();
+        SiteToSiteDBTestUtil.assertNoQueuedPackets(siteToSiteDB);
         mockNiFiS2SServer.verifyAssertions();
     }
 
@@ -111,7 +109,7 @@ public class SiteToSiteJobServiceTest {
             dataPackets.add(new ByteArrayDataPacket(Collections.singletonMap("id", "testId" + i), ("testPayload" + i).getBytes(Charsets.UTF_8)));
         }
         queuedSiteToSiteClientConfig.getQueuedSiteToSiteClient(context).enqueue(dataPackets.iterator());
-        assertEquals(numPackets, getQueuedPacketCount());
+        SiteToSiteDBTestUtil.assertQueuedPacketCount(siteToSiteDB, numPackets);
 
         Collections.reverse(dataPackets);
         mockNiFiS2SServer.enqueueSiteToSitePeers(Collections.singletonList(peer));
@@ -127,34 +125,7 @@ public class SiteToSiteJobServiceTest {
         JobScheduler jobScheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         assertEquals(JobScheduler.RESULT_SUCCESS, jobScheduler.schedule(processJobInfoBuilder.build()));
         assertEquals(1, parcelableQueuedOperationResultCallback.getInvocations().size());
-        assertNoQueuedPackets();
+        SiteToSiteDBTestUtil.assertNoQueuedPackets(siteToSiteDB);
         mockNiFiS2SServer.verifyAssertions();
-    }
-
-    private void resetCallbacks() {
-        resetQueuedCallback();
-    }
-
-    private void resetQueuedCallback() {
-        parcelableQueuedOperationResultCallback = new ParcelableQueuedOperationResultCallbackTestImpl(1);
-    }
-
-    private void assertNoQueuedPackets() {
-        assertEquals(0, getQueuedPacketCount());
-    }
-
-    private long getQueuedPacketCount() {
-        SQLiteDatabase readableDatabase = siteToSiteDB.getReadableDatabase();
-        try {
-            Cursor query = readableDatabase.query(SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME, new String[]{"count(*) as numRows"}, null, null, null, null, null);
-            try {
-                assertTrue(query.moveToNext());
-                return query.getLong(query.getColumnIndex("numRows"));
-            } finally {
-                query.close();
-            }
-        } finally {
-            readableDatabase.close();
-        }
     }
 }

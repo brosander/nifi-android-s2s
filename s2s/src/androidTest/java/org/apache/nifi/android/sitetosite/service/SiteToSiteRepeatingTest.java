@@ -19,16 +19,14 @@ package org.apache.nifi.android.sitetosite.service;
 
 import android.app.PendingIntent;
 import android.content.Context;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.support.test.InstrumentationRegistry;
 
 import org.apache.nifi.android.sitetosite.client.QueuedSiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.peer.Peer;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
+import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDBTestUtil;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
-import org.apache.nifi.android.sitetosite.client.queued.db.SQLiteDataPacketQueueTest;
 import org.apache.nifi.android.sitetosite.collectors.DataCollectorTestImpl;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
@@ -44,7 +42,6 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 public class SiteToSiteRepeatingTest {
     private MockNiFiS2SServer mockNiFiS2SServer;
@@ -61,7 +58,7 @@ public class SiteToSiteRepeatingTest {
     @Before
     public void setup() throws IOException {
         context = InstrumentationRegistry.getContext();
-        siteToSiteDB = SQLiteDataPacketQueueTest.getCleanSiteToSiteDB(context);
+        siteToSiteDB = SiteToSiteDBTestUtil.getCleanSiteToSiteDB(context);
 
         mockNiFiS2SServer = new MockNiFiS2SServer();
         portIdentifier = "testPortIdentifier";
@@ -73,7 +70,8 @@ public class SiteToSiteRepeatingTest {
         siteToSiteClientConfig.setUrls(Collections.singleton(mockNiFiS2SServer.getNifiApiUrl()));
 
         queuedSiteToSiteClientConfig = new QueuedSiteToSiteClientConfig(siteToSiteClientConfig);
-        resetCallbacks();
+        parcelableQueuedOperationResultCallback = new ParcelableQueuedOperationResultCallbackTestImpl();
+        parcelableTransactionResultCallback = new ParcelableTransactionResultCallbackTestImpl();
     }
 
     @Test(timeout = 5000)
@@ -151,7 +149,7 @@ public class SiteToSiteRepeatingTest {
         assertEquals(1, invocations.size());
         ParcelableQueuedOperationResultCallbackTestImpl.Invocation invocation = invocations.get(0);
         assertNull(invocation.getIoException());
-        assertNoQueuedPackets();
+        SiteToSiteDBTestUtil.assertNoQueuedPackets(siteToSiteDB);
     }
 
     @Test(timeout = 5000)
@@ -159,7 +157,7 @@ public class SiteToSiteRepeatingTest {
         List<DataPacket> dataPackets = Collections.<DataPacket>singletonList(new ByteArrayDataPacket(Collections.singletonMap("id", "testId"), "testPayload".getBytes(Charsets.UTF_8)));
         SiteToSiteRepeating.createEnqueuePendingIntent(context, new DataCollectorTestImpl(dataPackets), queuedSiteToSiteClientConfig, parcelableQueuedOperationResultCallback).getPendingIntent().send();
         parcelableQueuedOperationResultCallback.await();
-        assertEquals(1, getQueuedPacketCount());
+        SiteToSiteDBTestUtil.assertQueuedPacketCount(siteToSiteDB, 1);
         parcelableQueuedOperationResultCallback.reinitCountDown(1);
 
         mockNiFiS2SServer.enqueueSiteToSitePeers(Collections.singletonList(peer));
@@ -177,7 +175,7 @@ public class SiteToSiteRepeatingTest {
                 throw invocation.getIoException();
             }
         }
-        assertNoQueuedPackets();
+        SiteToSiteDBTestUtil.assertNoQueuedPackets(siteToSiteDB);
     }
 
     @Test(timeout = 5000)
@@ -188,17 +186,17 @@ public class SiteToSiteRepeatingTest {
         PendingIntent pendingIntent = SiteToSiteRepeating.createEnqueuePendingIntent(context, new DataCollectorTestImpl(batch1, batch2, batch3), queuedSiteToSiteClientConfig, parcelableQueuedOperationResultCallback).getPendingIntent();
         pendingIntent.send();
         parcelableQueuedOperationResultCallback.await();
-        assertEquals(1, getQueuedPacketCount());
+        SiteToSiteDBTestUtil.assertQueuedPacketCount(siteToSiteDB, 1);
         parcelableQueuedOperationResultCallback.reinitCountDown(1);
 
         pendingIntent.send();
         parcelableQueuedOperationResultCallback.await();
-        assertEquals(2, getQueuedPacketCount());
+        SiteToSiteDBTestUtil.assertQueuedPacketCount(siteToSiteDB, 2);
         parcelableQueuedOperationResultCallback.reinitCountDown(1);
 
         pendingIntent.send();
         parcelableQueuedOperationResultCallback.await();
-        assertEquals(2, getQueuedPacketCount());
+        SiteToSiteDBTestUtil.assertQueuedPacketCount(siteToSiteDB, 2);
         parcelableQueuedOperationResultCallback.reinitCountDown(1);
 
         List<DataPacket> dataPackets = new ArrayList<>();
@@ -221,7 +219,7 @@ public class SiteToSiteRepeatingTest {
                 throw invocation.getIoException();
             }
         }
-        assertNoQueuedPackets();
+        SiteToSiteDBTestUtil.assertNoQueuedPackets(siteToSiteDB);
     }
 
     @Test(timeout = 5000)
@@ -233,12 +231,12 @@ public class SiteToSiteRepeatingTest {
         }
         SiteToSiteRepeating.createEnqueuePendingIntent(context, new DataCollectorTestImpl(dataPackets), queuedSiteToSiteClientConfig, parcelableQueuedOperationResultCallback).getPendingIntent().send();
         parcelableQueuedOperationResultCallback.await();
-        assertEquals(500, getQueuedPacketCount());
+        SiteToSiteDBTestUtil.assertQueuedPacketCount(siteToSiteDB, 500);
         parcelableQueuedOperationResultCallback.reinitCountDown(1);
 
         SiteToSiteRepeating.createCleanupQueuePendingIntent(context, queuedSiteToSiteClientConfig, parcelableQueuedOperationResultCallback).getPendingIntent().send();
         parcelableQueuedOperationResultCallback.await();
-        assertEquals(250, getQueuedPacketCount());
+        SiteToSiteDBTestUtil.assertQueuedPacketCount(siteToSiteDB, 250);
         parcelableQueuedOperationResultCallback.reinitCountDown(1);
 
         Collections.reverse(dataPackets);
@@ -265,38 +263,6 @@ public class SiteToSiteRepeatingTest {
                 throw invocation.getIoException();
             }
         }
-        assertNoQueuedPackets();
-    }
-
-    private void resetCallbacks() {
-        resetQueuedCallback();
-        resetTransactionCallback();
-    }
-
-    private void resetQueuedCallback() {
-        parcelableQueuedOperationResultCallback = new ParcelableQueuedOperationResultCallbackTestImpl(1);
-    }
-
-    private void resetTransactionCallback() {
-        parcelableTransactionResultCallback = new ParcelableTransactionResultCallbackTestImpl(1);
-    }
-
-    private void assertNoQueuedPackets() {
-        assertEquals(0, getQueuedPacketCount());
-    }
-
-    private long getQueuedPacketCount() {
-        SQLiteDatabase readableDatabase = siteToSiteDB.getReadableDatabase();
-        try {
-            Cursor query = readableDatabase.query(SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME, new String[]{"count(*) as numRows"}, null, null, null, null, null);
-            try {
-                assertTrue(query.moveToNext());
-                return query.getLong(query.getColumnIndex("numRows"));
-            } finally {
-                query.close();
-            }
-        } finally {
-            readableDatabase.close();
-        }
+        SiteToSiteDBTestUtil.assertNoQueuedPackets(siteToSiteDB);
     }
 }

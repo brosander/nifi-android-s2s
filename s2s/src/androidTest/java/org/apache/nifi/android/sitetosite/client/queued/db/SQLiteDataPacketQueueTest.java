@@ -27,6 +27,7 @@ import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.Transaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
+import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDBTestUtil;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
 import org.apache.nifi.android.sitetosite.client.queued.DataPacketPrioritizer;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
@@ -63,7 +64,7 @@ public class SQLiteDataPacketQueueTest {
 
     @Before
     public void setup() {
-        siteToSiteDB = getCleanSiteToSiteDB(InstrumentationRegistry.getContext());
+        siteToSiteDB = SiteToSiteDBTestUtil.getCleanSiteToSiteDB(InstrumentationRegistry.getContext());
         siteToSiteClient = new TestSiteToSiteClient();
         sqLiteDataPacketQueue = new SQLiteDataPacketQueue(new SiteToSiteClientConfig(){
             @Override
@@ -72,18 +73,6 @@ public class SQLiteDataPacketQueueTest {
             }
         }, siteToSiteDB, new TestDataPacketPrioritizer(), MAX_ROWS, MAX_SIZE, ITERATOR_SIZE_LIMIT);
         testTransactionId = "testTransactionId";
-    }
-
-    public static SiteToSiteDB getCleanSiteToSiteDB(Context context) {
-        SiteToSiteDB siteToSiteDB = new SiteToSiteDB(context);
-        SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
-        try {
-            writableDatabase.delete(SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME, null, null);
-            writableDatabase.delete(SiteToSiteDB.PEER_STATUSES_TABLE_NAME, null, null);
-        } finally {
-            writableDatabase.close();
-        }
-        return siteToSiteDB;
     }
 
     @Test

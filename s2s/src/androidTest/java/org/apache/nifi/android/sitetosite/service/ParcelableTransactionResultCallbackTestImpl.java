@@ -50,6 +50,10 @@ public class ParcelableTransactionResultCallbackTestImpl implements ParcelableTr
     };
     private final String uuid;
 
+    public ParcelableTransactionResultCallbackTestImpl() {
+        this(1);
+    }
+
     public ParcelableTransactionResultCallbackTestImpl(int count) {
         this(UUID.randomUUID().toString());
         invocations.put(uuid, new ConcurrentLinkedQueue<Invocation>());

@@ -49,6 +49,10 @@ public class ParcelableQueuedOperationResultCallbackTestImpl implements Parcelab
 
     private final String uuid;
 
+    public ParcelableQueuedOperationResultCallbackTestImpl() {
+        this(1);
+    }
+
     public ParcelableQueuedOperationResultCallbackTestImpl(int count) {
         this(UUID.randomUUID().toString());
         invocations.put(uuid, new ConcurrentLinkedQueue<Invocation>());
