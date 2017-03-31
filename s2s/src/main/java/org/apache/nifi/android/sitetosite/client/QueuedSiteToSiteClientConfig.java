@@ -26,6 +26,7 @@ import org.apache.nifi.android.sitetosite.client.queued.NoOpDataPacketPrioritize
 import org.apache.nifi.android.sitetosite.client.queued.db.SQLiteDataPacketQueue;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public class QueuedSiteToSiteClientConfig extends SiteToSiteClientConfig {
     public enum QueueType {
@@ -33,7 +34,7 @@ public class QueuedSiteToSiteClientConfig extends SiteToSiteClientConfig {
             @Override
             public QueuedSiteToSiteClient create(Context context, QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig) throws IOException {
                 return new SQLiteDataPacketQueue(queuedSiteToSiteClientConfig, new SiteToSiteDB(context), queuedSiteToSiteClientConfig.dataPacketPrioritizer,
-                        queuedSiteToSiteClientConfig.maxRows, queuedSiteToSiteClientConfig.maxSize);
+                        queuedSiteToSiteClientConfig.maxRows, queuedSiteToSiteClientConfig.maxSize, queuedSiteToSiteClientConfig.maxTransactionTimeMillis);
             }
         });
         private final String displayName;
@@ -47,6 +48,7 @@ public class QueuedSiteToSiteClientConfig extends SiteToSiteClientConfig {
     private long maxRows = 10000;
     private long maxSize = 1024 * maxRows;
     private int transactionSize = 100;
+    private long maxTransactionTimeMillis = TimeUnit.MINUTES.toMillis(1);
     private DataPacketPrioritizer dataPacketPrioritizer = new NoOpDataPacketPrioritizer();
     private QueueType queueType = QueueType.DB;
 
@@ -57,6 +59,7 @@ public class QueuedSiteToSiteClientConfig extends SiteToSiteClientConfig {
             result.maxRows = source.readLong();
             result.maxSize = source.readLong();
             result.transactionSize = source.readInt();
+            result.maxTransactionTimeMillis = source.readLong();
             result.dataPacketPrioritizer = source.readParcelable(QueuedSiteToSiteClientConfig.class.getClassLoader());
             result.queueType = QueueType.valueOf(source.readString());
             return result;
@@ -116,12 +119,21 @@ public class QueuedSiteToSiteClientConfig extends SiteToSiteClientConfig {
         this.queueType = queueType;
     }
 
+    public long getMaxTransactionTime(TimeUnit timeUnit) {
+        return timeUnit.convert(maxTransactionTimeMillis, TimeUnit.MILLISECONDS);
+    }
+
+    public void setMaxTransactionTimeMillis(long maxTransactionTime, TimeUnit duration) {
+        this.maxTransactionTimeMillis = duration.toMillis(maxTransactionTime);
+    }
+
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         super.writeToParcel(dest, flags);
         dest.writeLong(maxRows);
         dest.writeLong(maxSize);
         dest.writeInt(transactionSize);
+        dest.writeLong(maxTransactionTimeMillis);
         dest.writeParcelable(dataPacketPrioritizer, 0);
         dest.writeString(queueType.name());
     }

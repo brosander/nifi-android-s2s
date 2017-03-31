@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -59,7 +60,6 @@ public class SQLiteDataPacketQueueTest {
 
     private SiteToSiteDB siteToSiteDB;
     private SQLiteDataPacketQueue sqLiteDataPacketQueue;
-    private String testTransactionId;
     private TestSiteToSiteClient siteToSiteClient;
 
     @Before
@@ -73,13 +73,12 @@ public class SQLiteDataPacketQueueTest {
             }
         };
         siteToSiteClientConfig.setPreferredBatchCount(ITERATOR_SIZE_LIMIT);
-        sqLiteDataPacketQueue = new SQLiteDataPacketQueue(siteToSiteClientConfig, siteToSiteDB, new TestDataPacketPrioritizer(), MAX_ROWS, MAX_SIZE);
-        testTransactionId = "testTransactionId";
+        sqLiteDataPacketQueue = new SQLiteDataPacketQueue(siteToSiteClientConfig, siteToSiteDB, new TestDataPacketPrioritizer(), MAX_ROWS, MAX_SIZE, TimeUnit.MINUTES.toMillis(1));
     }
 
     @Test
     public void testNoEntries() throws SQLiteIOException {
-        assertFalse(sqLiteDataPacketQueue.getSqLiteDataPacketIterator(testTransactionId).hasNext());
+        assertFalse(sqLiteDataPacketQueue.getSqLiteDataPacketIterator().hasNext());
     }
 
     @Test
@@ -101,11 +100,11 @@ public class SQLiteDataPacketQueueTest {
         for (int fromIndex = 0; fromIndex < dataPackets.size(); fromIndex += ITERATOR_SIZE_LIMIT) {
             List<DataPacket> expected = dataPackets.subList(fromIndex, Math.min(dataPackets.size(), fromIndex + ITERATOR_SIZE_LIMIT));
 
-            SQLiteDataPacketIterator sqLiteDataPacketIterator = sqLiteDataPacketQueue.getSqLiteDataPacketIterator(testTransactionId);
+            SQLiteDataPacketIterator sqLiteDataPacketIterator = sqLiteDataPacketQueue.getSqLiteDataPacketIterator();
             assertDataPacketsEqual(expected, sqLiteDataPacketIterator);
             sqLiteDataPacketIterator.transactionFailed();
 
-            sqLiteDataPacketIterator = sqLiteDataPacketQueue.getSqLiteDataPacketIterator(testTransactionId);
+            sqLiteDataPacketIterator = sqLiteDataPacketQueue.getSqLiteDataPacketIterator();
             assertDataPacketsEqual(expected, sqLiteDataPacketIterator);
             sqLiteDataPacketIterator.transactionComplete();
         }
@@ -278,7 +277,7 @@ public class SQLiteDataPacketQueueTest {
 
     private void assertDataPacketsMatchIterator(List<? extends DataPacket> expected) throws IOException {
         for (int fromIndex = 0; fromIndex < expected.size(); fromIndex += ITERATOR_SIZE_LIMIT) {
-            SQLiteDataPacketIterator sqLiteDataPacketIterator = sqLiteDataPacketQueue.getSqLiteDataPacketIterator(testTransactionId);
+            SQLiteDataPacketIterator sqLiteDataPacketIterator = sqLiteDataPacketQueue.getSqLiteDataPacketIterator();
             assertDataPacketsEqual(expected.subList(fromIndex, Math.min(expected.size(), fromIndex + ITERATOR_SIZE_LIMIT)), sqLiteDataPacketIterator);
             sqLiteDataPacketIterator.transactionComplete();
         }

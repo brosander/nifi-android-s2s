@@ -46,13 +46,14 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.CONTENT_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.CREATED_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QEUE_PRIORITY_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME;
+import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME;
+import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TRANSACTION_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.EXPIRATION_MILLIS_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.ID_COLUMN;
 
@@ -71,14 +72,16 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
     private final long maxRows;
     private final long maxSize;
     private final int iteratorSizeLimit;
+    private final long maxTransactionTimeMillis;
 
-    public SQLiteDataPacketQueue(SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteDB siteToSiteDB, DataPacketPrioritizer dataPacketPrioritizer, long maxRows, long maxSize) {
+    public SQLiteDataPacketQueue(SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteDB siteToSiteDB, DataPacketPrioritizer dataPacketPrioritizer, long maxRows, long maxSize, long maxTransactionTimeMillis) {
         this.siteToSiteClientConfig = siteToSiteClientConfig;
         this.siteToSiteDB = siteToSiteDB;
         this.dataPacketPrioritizer = dataPacketPrioritizer;
         this.maxRows = maxRows;
         this.maxSize = maxSize;
         this.iteratorSizeLimit = siteToSiteClientConfig.getPreferredBatchCount();
+        this.maxTransactionTimeMillis = maxTransactionTimeMillis;
     }
 
     private static SQLiteStatement buildDeleteQuery(SQLiteDatabase database, int numIds) {
@@ -252,6 +255,24 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
 
     @Override
     public void process() throws IOException {
+        SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
+        writableDatabase.beginTransaction();
+        try {
+            long currentTime = new Date().getTime();
+            writableDatabase.execSQL("UPDATE " + DATA_PACKET_QUEUE_TABLE_NAME +
+                    " SET " + DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = NULL" +
+                    " WHERE " + DATA_PACKET_QUEUE_TRANSACTION_COLUMN +
+                    " IN (SELECT " + DATA_PACKET_QUEUE_TRANSACTION_COLUMN +
+                    " FROM " + DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME +
+                    " WHERE " + EXPIRATION_MILLIS_COLUMN + " < ?)", new Object[]{currentTime});
+            writableDatabase.delete(DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME, EXPIRATION_MILLIS_COLUMN + " < ?", new String[]{Long.toString(currentTime)});
+            writableDatabase.setTransactionSuccessful();
+        } catch (SQLiteException e) {
+            throw new SQLiteIOException("Unable to clear expired transactions.", e);
+        } finally {
+            writableDatabase.endTransaction();
+            writableDatabase.close();
+        }
         SiteToSiteClient siteToSiteClient = siteToSiteClientConfig.createClient();
         while (doProcess(siteToSiteClient)) {
             Log.d(CANONICAL_NAME, " processed batch of transactions");
@@ -259,8 +280,7 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
     }
 
     protected boolean doProcess(SiteToSiteClient siteToSiteClient) throws IOException {
-        String transactionId = UUID.randomUUID().toString();
-        SQLiteDataPacketIterator sqLiteDataPacketIterator = getSqLiteDataPacketIterator(transactionId);
+        SQLiteDataPacketIterator sqLiteDataPacketIterator = getSqLiteDataPacketIterator();
         if (!sqLiteDataPacketIterator.hasNext()) {
             return false;
         }
@@ -283,7 +303,7 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
         return false;
     }
 
-    protected SQLiteDataPacketIterator getSqLiteDataPacketIterator(String transactionId) throws SQLiteIOException {
-        return new SQLiteDataPacketIterator(siteToSiteDB, transactionId, iteratorSizeLimit);
+    protected SQLiteDataPacketIterator getSqLiteDataPacketIterator() throws SQLiteIOException {
+        return new SQLiteDataPacketIterator(siteToSiteDB, iteratorSizeLimit, new Date().getTime() + maxTransactionTimeMillis);
     }
 }

@@ -40,9 +40,10 @@ import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.CREATED_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QEUE_PRIORITY_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN;
-import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.EXPIRATION_MILLIS_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME;
+import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TRANSACTION_COLUMN;
+import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.EXPIRATION_MILLIS_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.ID_COLUMN;
 
 public class SQLiteDataPacketIterator {
@@ -57,27 +58,34 @@ public class SQLiteDataPacketIterator {
             .append(" LIMIT ?)").toString();
 
     private final SiteToSiteDB siteToSiteDB;
-    private final String transactionId;
+    private final long transactionId;
     private final SQLiteDatabase readableDatabase;
     private final Cursor cursor;
     private final int attributesIndex;
     private final int contentIndex;
     private boolean hasNext;
 
-    public SQLiteDataPacketIterator(SiteToSiteDB siteToSiteDB, String transactionId, int limit) throws SQLiteIOException {
+    public SQLiteDataPacketIterator(SiteToSiteDB siteToSiteDB, int limit, long expirationMillis) throws SQLiteIOException {
         this.siteToSiteDB = siteToSiteDB;
-        this.transactionId = transactionId;
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
+        writableDatabase.beginTransaction();
         try {
+            ContentValues contentValues = new ContentValues();
+            contentValues.put(EXPIRATION_MILLIS_COLUMN, expirationMillis);
+            transactionId = writableDatabase.insert(DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME, null, contentValues);
             writableDatabase.execSQL(MARK_ROWS_FOR_TRANSACTION_QUERY, new Object[] {transactionId, new Date().getTime(), limit});
+            writableDatabase.setTransactionSuccessful();
+        } catch (SQLiteException e) {
+            throw new SQLiteIOException("Unable to create transaction.", e);
         } finally {
+            writableDatabase.endTransaction();
             writableDatabase.close();
         }
         this.readableDatabase = siteToSiteDB.getReadableDatabase();
         Cursor cursor = null;
         try {
             cursor = readableDatabase.query(false, DATA_PACKET_QUEUE_TABLE_NAME, new String[]{DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN, CONTENT_COLUMN},
-                    DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[]{transactionId}, null, null,
+                    DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[]{Long.toString(transactionId)}, null, null,
                     DATA_PACKET_QEUE_PRIORITY_COLUMN + " DESC, " + CREATED_COLUMN + " DESC, " + ID_COLUMN + " DESC", null);
             this.cursor = cursor;
             this.attributesIndex = cursor.getColumnIndex(DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN);
@@ -99,32 +107,40 @@ public class SQLiteDataPacketIterator {
         return hasNext;
     }
 
-    public DataPacket next() {
-        String json = new String(cursor.getBlob(attributesIndex), Charsets.UTF_8);
-        Map<String, String> attributes = new HashMap<>();
+    public DataPacket next() throws SQLiteIOException {
         try {
-            JSONObject attributesObject = new JSONObject(json);
-            Iterator<String> keys = attributesObject.keys();
-            while (keys.hasNext()) {
-                String name = keys.next();
-                attributes.put(name, attributesObject.getString(name));
+            String json = new String(cursor.getBlob(attributesIndex), Charsets.UTF_8);
+            Map<String, String> attributes = new HashMap<>();
+            try {
+                JSONObject attributesObject = new JSONObject(json);
+                Iterator<String> keys = attributesObject.keys();
+                while (keys.hasNext()) {
+                    String name = keys.next();
+                    attributes.put(name, attributesObject.getString(name));
+                }
+            } catch (JSONException e) {
+                Log.w(CANONICAL_NAME, "JSON errors shouldn't happen here as same library was responsible for inserting well-formed JSON: " + json, e);
             }
-        } catch (JSONException e) {
-            Log.w(CANONICAL_NAME, "JSON errors shouldn't happen here as same library was responsible for inserting well-formed JSON: " + json, e);
+            byte[] data = cursor.getBlob(contentIndex);
+            hasNext = cursor.moveToNext();
+            return new ByteArrayDataPacket(attributes, data);
+        } catch (SQLiteException e) {
+            throw new SQLiteIOException("Unable to read data packet from cursor.", e);
         }
-        byte[] data = cursor.getBlob(contentIndex);
-        hasNext = cursor.moveToNext();
-        return new ByteArrayDataPacket(attributes, data);
     }
 
     public void transactionComplete() throws SQLiteIOException {
         close();
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
+        writableDatabase.beginTransaction();
         try {
-            writableDatabase.delete(DATA_PACKET_QUEUE_TABLE_NAME, DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[] {transactionId});
+            writableDatabase.delete(DATA_PACKET_QUEUE_TABLE_NAME, DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[] {Long.toString(transactionId)});
+            writableDatabase.delete(DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME, DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[] {Long.toString(transactionId)});
+            writableDatabase.setTransactionSuccessful();
         } catch (SQLiteException e) {
             throw new SQLiteIOException("Unable to delete sent data packets, data may be duplicated.", e);
         } finally {
+            writableDatabase.endTransaction();
             writableDatabase.close();
         }
     }
@@ -132,13 +148,17 @@ public class SQLiteDataPacketIterator {
     public void transactionFailed() throws SQLiteIOException {
         close();
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
+        writableDatabase.beginTransaction();
         try {
             ContentValues contentValues = new ContentValues();
             contentValues.putNull(DATA_PACKET_QUEUE_TRANSACTION_COLUMN);
-            writableDatabase.update(DATA_PACKET_QUEUE_TABLE_NAME, contentValues, DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[] {transactionId});
+            writableDatabase.update(DATA_PACKET_QUEUE_TABLE_NAME, contentValues, DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[] {Long.toString(transactionId)});
+            writableDatabase.delete(DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME, DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[] {Long.toString(transactionId)});
+            writableDatabase.setTransactionSuccessful();
         } catch (SQLiteException e) {
             throw new SQLiteIOException("Unable to clear transaction from failed data packets.", e);
         } finally {
+            writableDatabase.endTransaction();
             writableDatabase.close();
         }
     }

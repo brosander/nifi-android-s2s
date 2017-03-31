@@ -56,6 +56,8 @@ public class SiteToSiteDB {
     public static final String DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN = "ATTRIBUTES";
     public static final String DATA_PACKET_QUEUE_TRANSACTION_COLUMN = "TRANSACTION_ID";
 
+    public static final String DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME = "APACHE_NIFI_SITE_TO_SITE_QUEUE_TRANSACTIONS";
+
     public static final int VERSION = 1;
 
     private static SQLiteOpenHelper sqLiteOpenHelper;
@@ -84,11 +86,16 @@ public class SiteToSiteDB {
                                 DATA_PACKET_QEUE_PRIORITY_COLUMN + " INTEGER, " +
                                 DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN + " BLOB, " +
                                 CONTENT_COLUMN + " BLOB, " +
-                                DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " TEXT, " +
+                                DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " INTEGER, " +
                                 EXPIRATION_MILLIS_COLUMN + " INTEGER)");
                         db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_" + DATA_PACKET_QUEUE_TRANSACTION_COLUMN + "_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QUEUE_TRANSACTION_COLUMN + ")");
                         db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_" + EXPIRATION_MILLIS_COLUMN + "_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + EXPIRATION_MILLIS_COLUMN + ")");
                         db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TABLE_NAME + "_sort_index ON " + DATA_PACKET_QUEUE_TABLE_NAME + "(" + DATA_PACKET_QEUE_PRIORITY_COLUMN + ", " + CREATED_COLUMN + ", " + ID_COLUMN + ")");
+
+                        db.execSQL("CREATE TABLE " + DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME + "(" +
+                                DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " INTEGER PRIMARY KEY, " +
+                                EXPIRATION_MILLIS_COLUMN + " INTEGER)");
+                        db.execSQL("CREATE INDEX " + DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME + "_" + EXPIRATION_MILLIS_COLUMN + "_index ON " + DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME + "(" + EXPIRATION_MILLIS_COLUMN + ")");
                     }
 
                     @Override
