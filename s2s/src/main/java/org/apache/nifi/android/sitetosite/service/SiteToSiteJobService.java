@@ -29,6 +29,7 @@ import android.support.annotation.RequiresApi;
 import android.util.Log;
 
 import org.apache.nifi.android.sitetosite.client.QueuedSiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.persistence.SQLiteIOException;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.util.SerializationUtils;
 
@@ -45,10 +46,17 @@ public class SiteToSiteJobService extends JobService {
         final SiteToSiteDB siteToSiteDB = new SiteToSiteDB(applicationContext);
 
         PersistableBundle extras = params.getExtras();
-        QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig = SerializationUtils.getParcelable(SiteToSiteJobService.class.getClassLoader(), extras, "config");
-        siteToSiteDB.updatePeerStatusOnConfig(queuedSiteToSiteClientConfig);
-
         final ParcelableQueuedOperationResultCallback parcelableQueuedOperationResultCallback = SerializationUtils.getParcelable(SiteToSiteJobService.class.getClassLoader(), extras, "callback");
+
+        QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig = SerializationUtils.getParcelable(SiteToSiteJobService.class.getClassLoader(), extras, "config");
+        try {
+            siteToSiteDB.updatePeerStatusOnConfig(queuedSiteToSiteClientConfig);
+        } catch (SQLiteIOException e) {
+            parcelableQueuedOperationResultCallback.onException(applicationContext, e);
+            jobFinished(params, true);
+            return false;
+        }
+
         SiteToSiteService.processQueuedPackets(applicationContext, queuedSiteToSiteClientConfig, new QueuedOperationResultCallback() {
             @Override
             public Handler getHandler() {

@@ -20,8 +20,10 @@ package org.apache.nifi.android.sitetosite.client.queued.db;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.util.Log;
 
+import org.apache.nifi.android.sitetosite.client.persistence.SQLiteIOException;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
@@ -62,7 +64,7 @@ public class SQLiteDataPacketIterator {
     private final int contentIndex;
     private boolean hasNext;
 
-    public SQLiteDataPacketIterator(SiteToSiteDB siteToSiteDB, String transactionId, int limit) {
+    public SQLiteDataPacketIterator(SiteToSiteDB siteToSiteDB, String transactionId, int limit) throws SQLiteIOException {
         this.siteToSiteDB = siteToSiteDB;
         this.transactionId = transactionId;
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
@@ -80,12 +82,12 @@ public class SQLiteDataPacketIterator {
             this.cursor = cursor;
             this.attributesIndex = cursor.getColumnIndex(DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN);
             this.contentIndex = cursor.getColumnIndex(CONTENT_COLUMN);
-        } catch (Exception e){
+        } catch (SQLiteException e){
             if (cursor != null) {
                 cursor.close();
             }
             readableDatabase.close();
-            throw new RuntimeException(e);
+            throw new SQLiteIOException("Unable to query " + DATA_PACKET_QUEUE_TABLE_NAME + " for queued packets.", e);
         }
         hasNext = cursor.moveToNext();
         if (!hasNext) {
@@ -115,23 +117,27 @@ public class SQLiteDataPacketIterator {
         return new ByteArrayDataPacket(attributes, data);
     }
 
-    public void transactionComplete() {
+    public void transactionComplete() throws SQLiteIOException {
         close();
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
         try {
             writableDatabase.delete(DATA_PACKET_QUEUE_TABLE_NAME, DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[] {transactionId});
+        } catch (SQLiteException e) {
+            throw new SQLiteIOException("Unable to delete sent data packets, data may be duplicated.", e);
         } finally {
             writableDatabase.close();
         }
     }
 
-    public void transactionFailed() {
+    public void transactionFailed() throws SQLiteIOException {
         close();
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
         try {
             ContentValues contentValues = new ContentValues();
             contentValues.putNull(DATA_PACKET_QUEUE_TRANSACTION_COLUMN);
             writableDatabase.update(DATA_PACKET_QUEUE_TABLE_NAME, contentValues, DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = ?", new String[] {transactionId});
+        } catch (SQLiteException e) {
+            throw new SQLiteIOException("Unable to clear transaction from failed data packets.", e);
         } finally {
             writableDatabase.close();
         }

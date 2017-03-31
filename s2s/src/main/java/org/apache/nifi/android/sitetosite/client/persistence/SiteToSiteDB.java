@@ -21,6 +21,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Parcel;
 
@@ -104,7 +105,7 @@ public class SiteToSiteDB {
      *
      * @param siteToSiteClientConfig the configuration to save the peer status for
      */
-    public void savePeerStatus(SiteToSiteClientConfig siteToSiteClientConfig) {
+    public void savePeerStatus(SiteToSiteClientConfig siteToSiteClientConfig) throws SQLiteIOException {
         PeerStatus peerStatus = siteToSiteClientConfig.getPeerStatus();
         if (peerStatus == null) {
             return;
@@ -141,6 +142,8 @@ public class SiteToSiteDB {
             } finally {
                 writableDatabase.endTransaction();
             }
+        } catch (SQLiteException e) {
+            throw new SQLiteIOException("Unable to store peer status in database.", e);
         } finally {
             writableDatabase.close();
         }
@@ -151,9 +154,8 @@ public class SiteToSiteDB {
      *
      * @param siteToSiteClientConfig the config to get peer status for
      */
-    public void updatePeerStatusOnConfig(SiteToSiteClientConfig siteToSiteClientConfig) {
+    public void updatePeerStatusOnConfig(SiteToSiteClientConfig siteToSiteClientConfig) throws SQLiteIOException {
         PeerStatus origPeerStatus = siteToSiteClientConfig.getPeerStatus();
-        SQLiteDatabase readableDatabase = sqLiteOpenHelper.getReadableDatabase();
 
         List<String> parameters = new ArrayList<>();
 
@@ -170,6 +172,7 @@ public class SiteToSiteDB {
             parameters.add(Integer.toString(siteToSiteClientConfig.getProxyPort()));
         }
 
+        SQLiteDatabase readableDatabase = sqLiteOpenHelper.getReadableDatabase();
         try {
             Cursor cursor;
             cursor = readableDatabase.query(false, PEER_STATUSES_TABLE_NAME, new String[]{CONTENT_COLUMN}, queryString.toString(),
@@ -190,6 +193,8 @@ public class SiteToSiteDB {
             } finally {
                 cursor.close();
             }
+        } catch (SQLiteException e) {
+            throw new SQLiteIOException("Unable to read peer status from database.", e);
         } finally {
             readableDatabase.close();
         }

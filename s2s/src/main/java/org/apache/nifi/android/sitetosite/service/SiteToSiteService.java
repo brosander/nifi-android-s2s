@@ -137,8 +137,8 @@ public class SiteToSiteService extends IntentService {
             if (intentType.isQueueOperation()) {
                 ResultReceiver queuedOperationResultCallback = intent.getExtras().getParcelable(TRANSACTION_RESULT_CALLBACK);
                 QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig = SerializationUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
-                siteToSiteDB.updatePeerStatusOnConfig(queuedSiteToSiteClientConfig);
                 try {
+                    siteToSiteDB.updatePeerStatusOnConfig(queuedSiteToSiteClientConfig);
                     QueuedSiteToSiteClient queuedSiteToSiteClient = queuedSiteToSiteClientConfig.getQueuedSiteToSiteClient(context);
                     if (intentType == IntentType.ENQUEUE) {
                         List<DataPacket> packets = intent.getExtras().getParcelableArrayList(DATA_PACKETS);
@@ -165,9 +165,9 @@ public class SiteToSiteService extends IntentService {
                 List<DataPacket> packets = intent.getExtras().getParcelableArrayList(DATA_PACKETS);
                 ResultReceiver transactionResultCallback = intent.getExtras().getParcelable(TRANSACTION_RESULT_CALLBACK);
                 SiteToSiteClientConfig siteToSiteClientConfig = SerializationUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
-                siteToSiteDB.updatePeerStatusOnConfig(siteToSiteClientConfig);
                 if (packets.size() > 0) {
                     try {
+                        siteToSiteDB.updatePeerStatusOnConfig(siteToSiteClientConfig);
                         SiteToSiteClient client = siteToSiteClientConfig.createClient();
                         Transaction transaction = client.createTransaction();
                         for (DataPacket packet : packets) {

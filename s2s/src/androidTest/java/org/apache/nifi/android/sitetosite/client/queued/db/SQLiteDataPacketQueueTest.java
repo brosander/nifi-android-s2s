@@ -25,6 +25,7 @@ import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.Transaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
+import org.apache.nifi.android.sitetosite.client.persistence.SQLiteIOException;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDBTestUtil;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
@@ -77,7 +78,7 @@ public class SQLiteDataPacketQueueTest {
     }
 
     @Test
-    public void testNoEntries() {
+    public void testNoEntries() throws SQLiteIOException {
         assertFalse(sqLiteDataPacketQueue.getSqLiteDataPacketIterator(testTransactionId).hasNext());
     }
 

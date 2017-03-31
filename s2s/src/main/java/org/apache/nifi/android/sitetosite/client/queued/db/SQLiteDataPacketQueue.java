@@ -20,6 +20,7 @@ package org.apache.nifi.android.sitetosite.client.queued.db;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteStatement;
 import android.util.Log;
 
@@ -27,6 +28,7 @@ import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.Transaction;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
+import org.apache.nifi.android.sitetosite.client.persistence.SQLiteIOException;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.client.queued.AbstractQueuedSiteToSiteClient;
 import org.apache.nifi.android.sitetosite.client.queued.DataPacketPrioritizer;
@@ -130,6 +132,8 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
             } finally {
                 writableDatabase.endTransaction();
             }
+        } catch (SQLiteException e) {
+            throw new SQLiteIOException("Error inserting data packets.", e);
         } finally {
             writableDatabase.close();
         }
@@ -148,7 +152,7 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
     }
 
     @Override
-    public void cleanup() {
+    public void cleanup() throws SQLiteIOException {
         SQLiteDatabase writableDatabase = siteToSiteDB.getWritableDatabase();
         try {
             writableDatabase.beginTransaction();
@@ -160,6 +164,8 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
             } finally {
                 writableDatabase.endTransaction();
             }
+        } catch (SQLiteException e) {
+            throw new SQLiteIOException("Unable to cleanup queued data packets.", e);
         } finally {
             writableDatabase.close();
         }
@@ -266,8 +272,9 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
             }
             transaction.confirm();
             transactionResult = transaction.complete();
-        } catch (Exception e) {
+        } catch (IOException e) {
             sqLiteDataPacketIterator.transactionFailed();
+            throw e;
         }
         if (transactionResult != null) {
             sqLiteDataPacketIterator.transactionComplete();
@@ -276,7 +283,7 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
         return false;
     }
 
-    protected SQLiteDataPacketIterator getSqLiteDataPacketIterator(String transactionId) {
+    protected SQLiteDataPacketIterator getSqLiteDataPacketIterator(String transactionId) throws SQLiteIOException {
         return new SQLiteDataPacketIterator(siteToSiteDB, transactionId, iteratorSizeLimit);
     }
 }
