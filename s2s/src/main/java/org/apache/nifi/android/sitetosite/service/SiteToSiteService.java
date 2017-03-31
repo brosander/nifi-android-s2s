@@ -137,9 +137,9 @@ public class SiteToSiteService extends IntentService {
             if (intentType.isQueueOperation()) {
                 ResultReceiver queuedOperationResultCallback = intent.getExtras().getParcelable(TRANSACTION_RESULT_CALLBACK);
                 QueuedSiteToSiteClientConfig queuedSiteToSiteClientConfig = SerializationUtils.getParcelable(intent, SITE_TO_SITE_CONFIG);
+                siteToSiteDB.updatePeerStatusOnConfig(queuedSiteToSiteClientConfig);
                 try {
                     QueuedSiteToSiteClient queuedSiteToSiteClient = queuedSiteToSiteClientConfig.getQueuedSiteToSiteClient(context);
-                    siteToSiteDB.updatePeerStatusOnConfig(queuedSiteToSiteClientConfig);
                     if (intentType == IntentType.ENQUEUE) {
                         List<DataPacket> packets = intent.getExtras().getParcelableArrayList(DATA_PACKETS);
                         if (packets.size() > 0) {
