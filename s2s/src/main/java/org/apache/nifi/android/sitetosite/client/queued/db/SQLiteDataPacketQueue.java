@@ -50,8 +50,8 @@ import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.CREATED_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QEUE_PRIORITY_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN;
-import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.EXPIRATION_MILLIS_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME;
+import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.EXPIRATION_MILLIS_COLUMN;
 import static org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB.ID_COLUMN;
 
 public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
@@ -70,13 +70,13 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
     private final long maxSize;
     private final int iteratorSizeLimit;
 
-    public SQLiteDataPacketQueue(SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteDB siteToSiteDB, DataPacketPrioritizer dataPacketPrioritizer, long maxRows, long maxSize, int iteratorSizeLimit) {
+    public SQLiteDataPacketQueue(SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteDB siteToSiteDB, DataPacketPrioritizer dataPacketPrioritizer, long maxRows, long maxSize) {
         this.siteToSiteClientConfig = siteToSiteClientConfig;
         this.siteToSiteDB = siteToSiteDB;
         this.dataPacketPrioritizer = dataPacketPrioritizer;
         this.maxRows = maxRows;
         this.maxSize = maxSize;
-        this.iteratorSizeLimit = iteratorSizeLimit;
+        this.iteratorSizeLimit = siteToSiteClientConfig.getPreferredBatchCount();
     }
 
     private static SQLiteStatement buildDeleteQuery(SQLiteDatabase database, int numIds) {

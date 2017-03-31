@@ -1,7 +1,7 @@
 package org.apache.nifi.android.sitetosite.client;
 
-import org.apache.nifi.android.sitetosite.client.http.HttpTransaction;
 import org.apache.nifi.android.sitetosite.client.http.HttpPeerConnector;
+import org.apache.nifi.android.sitetosite.client.http.HttpTransaction;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
@@ -60,7 +60,7 @@ public class HttpTransactionTest {
         for (RecordedRequest recordedRequest : recordedRequests) {
             assertNull(recordedRequest.getHeader(HANDSHAKE_PROPERTY_USE_COMPRESSION));
             assertEquals(Long.toString(siteToSiteClientConfig.getIdleConnectionExpiration(TimeUnit.MILLISECONDS)), recordedRequest.getHeader(HANDSHAKE_PROPERTY_REQUEST_EXPIRATION));
-            assertNull(recordedRequest.getHeader(HANDSHAKE_PROPERTY_BATCH_COUNT));
+            assertEquals(Integer.toString(siteToSiteClientConfig.getPreferredBatchCount()), recordedRequest.getHeader(HANDSHAKE_PROPERTY_BATCH_COUNT));
             assertNull(recordedRequest.getHeader(HANDSHAKE_PROPERTY_BATCH_SIZE));
             assertNull(recordedRequest.getHeader(HANDSHAKE_PROPERTY_BATCH_DURATION));
         }

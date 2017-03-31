@@ -102,7 +102,7 @@ public class SiteToSiteRepeatingTest {
         mockNiFiS2SServer.verifyAssertions();
     }
 
-    @Test/*(timeout = 5000)*/
+    @Test(timeout = 5000)
     public void testSendMultipleBatches() throws Exception {
         List<DataPacket> batch1 = Collections.<DataPacket>singletonList(new ByteArrayDataPacket(Collections.singletonMap("id", "testId"), "testPayload".getBytes(Charsets.UTF_8)));
         List<DataPacket> batch2 = Collections.<DataPacket>singletonList(new ByteArrayDataPacket(Collections.singletonMap("id", "testId2"), "testPayload2".getBytes(Charsets.UTF_8)));

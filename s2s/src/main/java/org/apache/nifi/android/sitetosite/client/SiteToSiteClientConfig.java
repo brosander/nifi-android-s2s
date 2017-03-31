@@ -128,7 +128,7 @@ public class SiteToSiteClientConfig implements Parcelable {
     private String portIdentifier;
     private long preferredBatchDurationNanos;
     private long preferredBatchSize;
-    private int preferredBatchCount;
+    private int preferredBatchCount = 100;
     private String proxyHost;
     private int proxyPort;
     private String proxyUsername;
