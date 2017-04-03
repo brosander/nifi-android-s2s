@@ -17,9 +17,8 @@
 
 package org.apache.nifi.android.sitetosite.client.socket;
 
-import android.support.annotation.NonNull;
-
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
 import org.apache.nifi.android.sitetosite.client.peer.Peer;
 import org.apache.nifi.android.sitetosite.client.protocol.RequestType;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
@@ -53,16 +52,18 @@ public class SocketPeerConnector {
 
     private final Peer peer;
     private final SiteToSiteClientConfig siteToSiteClientConfig;
+    private final SiteToSiteRemoteCluster siteToSiteRemoteCluster;
 
-    public SocketPeerConnector(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig) {
+    public SocketPeerConnector(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteRemoteCluster siteToSiteRemoteCluster) {
         this.peer = peer;
         this.siteToSiteClientConfig = siteToSiteClientConfig;
+        this.siteToSiteRemoteCluster = siteToSiteRemoteCluster;
     }
 
     public SocketPeerConnection openConnection(boolean negotiateCodec) throws IOException {
         Socket socket;
         if (peer.isSecure()) {
-            SSLContext sslContext = siteToSiteClientConfig.getSslContext();
+            SSLContext sslContext = siteToSiteRemoteCluster.getSslContext();
             if (sslContext == null) {
                 throw new IOException("SSL not configured but peer is set to secure");
             }

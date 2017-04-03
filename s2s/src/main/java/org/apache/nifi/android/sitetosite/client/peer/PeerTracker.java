@@ -20,6 +20,7 @@ package org.apache.nifi.android.sitetosite.client.peer;
 import android.util.Log;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
 import org.apache.nifi.android.sitetosite.client.http.HttpPeerConnector;
 
 import java.io.IOException;
@@ -43,23 +44,25 @@ public class PeerTracker {
 
     private final Set<PeerKey> initialPeers;
     private final SiteToSiteClientConfig siteToSiteClientConfig;
+    private final SiteToSiteRemoteCluster siteToSiteRemoteCluster;
     private final Map<PeerKey, HttpPeerConnector> peerConnectionManagerMap;
     private final PeerUpdater peerUpdater;
     private final Set<Thread> currentlyUpdating = new HashSet<>();
     private PeerStatus peerStatus;
 
-    public PeerTracker(SiteToSiteClientConfig siteToSiteClientConfig, PeerUpdater peerUpdater) throws IOException {
+    public PeerTracker(SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteRemoteCluster siteToSiteRemoteCluster, PeerUpdater peerUpdater) throws IOException {
         this.siteToSiteClientConfig = siteToSiteClientConfig;
+        this.siteToSiteRemoteCluster = siteToSiteRemoteCluster;
         this.initialPeers = new HashSet<>();
         this.peerConnectionManagerMap = new HashMap<>();
         List<Peer> peerList = new ArrayList<>();
-        for (String initialPeer : siteToSiteClientConfig.getUrls()) {
+        for (String initialPeer : siteToSiteRemoteCluster.getUrls()) {
             Peer peer = new Peer(initialPeer, 0);
             peerList.add(peer);
             this.initialPeers.add(peer.getPeerKey());
         }
         this.peerUpdater = peerUpdater;
-        PeerStatus peerStatus = siteToSiteClientConfig.getPeerStatus();
+        PeerStatus peerStatus = siteToSiteRemoteCluster.getPeerStatus();
         if (peerStatus == null) {
             this.peerStatus = new PeerStatus(peerList, 0L);
         } else {
@@ -90,14 +93,14 @@ public class PeerTracker {
             }
         }
         peerStatus = new PeerStatus(newPeerMap.values(), lastPeerUpdate);
-        siteToSiteClientConfig.setPeerStatus(peerStatus);
+        siteToSiteRemoteCluster.setPeerStatus(peerStatus);
     }
 
     public <O> O performHttpOperation(PeerOperation<O, HttpPeerConnector> operation) throws IOException {
         return performOperation(operation, new PeerConnectorFactory<HttpPeerConnector>(){
             @Override
-            public HttpPeerConnector create(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
-                return getPeerConnectionManager(peer, siteToSiteClientConfig);
+            public HttpPeerConnector create(Peer peer) throws IOException {
+                return getPeerConnectionManager(peer, siteToSiteClientConfig, siteToSiteRemoteCluster);
             }
         });
     }
@@ -105,8 +108,8 @@ public class PeerTracker {
     public <O> O performHttpOperation(Collection<Peer> peers, PeerOperation<O, HttpPeerConnector> operation) throws IOException {
         return performOperation(peers, operation, new PeerConnectorFactory<HttpPeerConnector>() {
             @Override
-            public HttpPeerConnector create(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
-                return getPeerConnectionManager(peer, siteToSiteClientConfig);
+            public HttpPeerConnector create(Peer peer) throws IOException {
+                return getPeerConnectionManager(peer, siteToSiteClientConfig, siteToSiteRemoteCluster);
             }
         });
     }
@@ -127,7 +130,7 @@ public class PeerTracker {
         IOException lastException = null;
         for (Peer peer : peers) {
             try {
-                P connectionManager = connectorFactory.create(peer, siteToSiteClientConfig);
+                P connectionManager = connectorFactory.create(peer);
                 if (connectionManager == null) {
                     continue;
                 }
@@ -189,7 +192,7 @@ public class PeerTracker {
         }
     }
 
-    private HttpPeerConnector getPeerConnectionManager(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig) {
+    private HttpPeerConnector getPeerConnectionManager(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteRemoteCluster siteToSiteRemoteCluster) {
         int httpPort = peer.getHttpPort();
         if (httpPort < 1 || httpPort > 65535) {
             return null;
@@ -202,7 +205,7 @@ public class PeerTracker {
                 peerUrlBuilder.append("s");
             }
             peerUrlBuilder.append("://").append(peer.getHostname()).append(":").append(httpPort).append(NIFI_API_PATH);
-            result = new HttpPeerConnector(peerUrlBuilder.toString(), siteToSiteClientConfig);
+            result = new HttpPeerConnector(peerUrlBuilder.toString(), siteToSiteClientConfig, siteToSiteRemoteCluster);
             peerConnectionManagerMap.put(peerKey, result);
         }
         return result;

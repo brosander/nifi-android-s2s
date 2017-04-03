@@ -20,5 +20,5 @@ package org.apache.nifi.android.sitetosite.client;
 import java.io.IOException;
 
 public interface SiteToSiteClientFactory {
-    SiteToSiteClient create(SiteToSiteClientConfig siteToSiteClientConfig) throws IOException;
+    SiteToSiteClient create(SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteRemoteCluster siteToSiteRemoteCluster) throws IOException;
 }

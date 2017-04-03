@@ -93,7 +93,7 @@ public class HttpTransactionTest {
 
         mockNiFiS2SServer.enqueuCreateTransaction(portIdentifier, null, 30);
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
+        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig, new SiteToSiteRemoteCluster()), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
         mockNiFiS2SServer.verifyAssertions();
     }
 
@@ -104,7 +104,7 @@ public class HttpTransactionTest {
 
         mockNiFiS2SServer.enqueuCreateTransaction(portIdentifier, transactionIdentifier, 30, false);
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
+        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig, new SiteToSiteRemoteCluster()), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
         mockNiFiS2SServer.verifyAssertions();
     }
 
@@ -115,7 +115,7 @@ public class HttpTransactionTest {
 
         mockNiFiS2SServer.enqueuCreateTransaction(portIdentifier, transactionIdentifier, null);
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
+        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig, new SiteToSiteRemoteCluster()), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
         mockNiFiS2SServer.verifyAssertions();
     }
 
@@ -127,7 +127,7 @@ public class HttpTransactionTest {
 
         mockNiFiS2SServer.enqueuCreateTransaction(portIdentifier, transactionIdentifier, ttl);
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
+        new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig, new SiteToSiteRemoteCluster()), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
         mockNiFiS2SServer.verifyAssertions();
     }
 
@@ -140,7 +140,7 @@ public class HttpTransactionTest {
         mockNiFiS2SServer.enqueuDataPackets(transactionPath, dataPackets, siteToSiteClientConfig);
 
         mockNiFiS2SServer.enqueueTransactionComplete(transactionPath, dataPackets.size(), ResponseCode.CONFIRM_TRANSACTION, ResponseCode.CONFIRM_TRANSACTION);
-        HttpTransaction httpTransaction = new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
+        HttpTransaction httpTransaction = new HttpTransaction(new HttpPeerConnector(mockNiFiS2SServer.getNifiApiUrl(), siteToSiteClientConfig, new SiteToSiteRemoteCluster()), portIdentifier, siteToSiteClientConfig, scheduledThreadPoolExecutor);
         scheduledThreadPoolExecutor.getTtlExtender(15).run();
 
         for (DataPacket dataPacket : dataPackets) {

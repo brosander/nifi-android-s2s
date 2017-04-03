@@ -18,6 +18,7 @@
 package org.apache.nifi.android.sitetosite.client.socket;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
 import org.apache.nifi.android.sitetosite.client.peer.Peer;
 import org.apache.nifi.android.sitetosite.client.protocol.RequestType;
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
@@ -73,7 +74,7 @@ public class SocketPeerConnectorTest {
 
         final Future<Exception> future = startServer(serverSocket, peer, siteToSiteClientConfig, true);
 
-        SocketPeerConnector connector = new SocketPeerConnector(peer, siteToSiteClientConfig);
+        SocketPeerConnector connector = new SocketPeerConnector(peer, siteToSiteClientConfig, new SiteToSiteRemoteCluster());
         SocketPeerConnection socketPeerConnection = connector.openConnection(true);
         Exception exception = future.get();
         if (exception != null) {
@@ -93,7 +94,7 @@ public class SocketPeerConnectorTest {
 
         final Future<Exception> future = startServer(serverSocket, peer, siteToSiteClientConfig, false);
 
-        SocketPeerConnector connector = new SocketPeerConnector(peer, siteToSiteClientConfig);
+        SocketPeerConnector connector = new SocketPeerConnector(peer, siteToSiteClientConfig, new SiteToSiteRemoteCluster());
         SocketPeerConnection socketPeerConnection = connector.openConnection(false);
         Exception exception = future.get();
         if (exception != null) {

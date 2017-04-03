@@ -26,6 +26,7 @@ import android.support.annotation.RequiresApi;
 import android.support.test.InstrumentationRegistry;
 
 import org.apache.nifi.android.sitetosite.client.QueuedSiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
 import org.apache.nifi.android.sitetosite.client.peer.Peer;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDBTestUtil;
@@ -67,7 +68,9 @@ public class SiteToSiteJobServiceTest {
 
         queuedSiteToSiteClientConfig = new QueuedSiteToSiteClientConfig();
         queuedSiteToSiteClientConfig.setPortIdentifier(portIdentifier);
-        queuedSiteToSiteClientConfig.setUrls(Collections.singleton(mockNiFiS2SServer.getNifiApiUrl()));
+        SiteToSiteRemoteCluster siteToSiteRemoteCluster = new SiteToSiteRemoteCluster();
+        siteToSiteRemoteCluster.setUrls(Collections.singleton(mockNiFiS2SServer.getNifiApiUrl()));
+        queuedSiteToSiteClientConfig.setRemoteClusters(Collections.singletonList(siteToSiteRemoteCluster));
 
         parcelableQueuedOperationResultCallback = new ParcelableQueuedOperationResultCallbackTestImpl();
     }

@@ -40,6 +40,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
 import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
@@ -55,6 +56,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -74,7 +76,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         if (preferences.getString("client_type_preference", null) == null) {
             SharedPreferences.Editor edit = preferences.edit();
-            edit.putString("client_type_preference", SiteToSiteClientConfig.ClientType.HTTP.name());
+            edit.putString("client_type_preference", SiteToSiteRemoteCluster.ClientType.HTTP.name());
             edit.commit();
         }
         setContentView(R.layout.activity_main);
@@ -158,24 +160,27 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
             Log.w(MainActivity.class.getCanonicalName(), "Unable to parse proxy port", e);
         }
 
+        SiteToSiteRemoteCluster siteToSiteRemoteCluster = new SiteToSiteRemoteCluster();
+        siteToSiteRemoteCluster.setUrls(peerUrls);
+        siteToSiteRemoteCluster.setUsername(preferences.getString("username_preference", null));
+        siteToSiteRemoteCluster.setPassword(preferences.getString("password_preference", null));
+        siteToSiteRemoteCluster.setProxyHost(proxyHost);
+        siteToSiteRemoteCluster.setProxyPort(proxyPort);
+        siteToSiteRemoteCluster.setProxyUsername(preferences.getString("proxy_port_username", null));
+        siteToSiteRemoteCluster.setProxyPassword(preferences.getString("proxy_port_password", null));
+        siteToSiteRemoteCluster.setClientType(SiteToSiteRemoteCluster.ClientType.valueOf(preferences.getString("client_type_preference", SiteToSiteRemoteCluster.ClientType.HTTP.name())));
+
+        siteToSiteRemoteCluster.setKeystoreFilename("classpath:keystore.bks");
+        siteToSiteRemoteCluster.setKeystoreType("BKS");
+        siteToSiteRemoteCluster.setKeystorePassword("dky/UyjnxapXPeNNLE3/PRGpdAnCaOOmAAWg0F1Jm3Q");
+
+        siteToSiteRemoteCluster.setTruststoreFilename("classpath:truststore.bks");
+        siteToSiteRemoteCluster.setTruststoreType("BKS");
+        siteToSiteRemoteCluster.setTruststorePassword("Kr6ut7JD7DOxnquDhesorRAruHpRElS/lpzXWIt0e+M");
+
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-        siteToSiteClientConfig.setUrls(peerUrls);
+        siteToSiteClientConfig.setRemoteClusters(Collections.singletonList(siteToSiteRemoteCluster));
         siteToSiteClientConfig.setPortName(preferences.getString("input_port_preference", null));
-        siteToSiteClientConfig.setUsername(preferences.getString("username_preference", null));
-        siteToSiteClientConfig.setPassword(preferences.getString("password_preference", null));
-        siteToSiteClientConfig.setProxyHost(proxyHost);
-        siteToSiteClientConfig.setProxyPort(proxyPort);
-        siteToSiteClientConfig.setProxyUsername(preferences.getString("proxy_port_username", null));
-        siteToSiteClientConfig.setProxyPassword(preferences.getString("proxy_port_password", null));
-        siteToSiteClientConfig.setClientType(SiteToSiteClientConfig.ClientType.valueOf(preferences.getString("client_type_preference", SiteToSiteClientConfig.ClientType.HTTP.name())));
-
-        siteToSiteClientConfig.setKeystoreFilename("classpath:keystore.bks");
-        siteToSiteClientConfig.setKeystoreType("BKS");
-        siteToSiteClientConfig.setKeystorePassword("dky/UyjnxapXPeNNLE3/PRGpdAnCaOOmAAWg0F1Jm3Q");
-
-        siteToSiteClientConfig.setTruststoreFilename("classpath:truststore.bks");
-        siteToSiteClientConfig.setTruststoreType("BKS");
-        siteToSiteClientConfig.setTruststorePassword("Kr6ut7JD7DOxnquDhesorRAruHpRElS/lpzXWIt0e+M");
 
         return siteToSiteClientConfig;
     }
