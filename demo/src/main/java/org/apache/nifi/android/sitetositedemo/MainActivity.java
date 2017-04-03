@@ -170,14 +170,6 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
         siteToSiteRemoteCluster.setProxyPassword(preferences.getString("proxy_port_password", null));
         siteToSiteRemoteCluster.setClientType(SiteToSiteRemoteCluster.ClientType.valueOf(preferences.getString("client_type_preference", SiteToSiteRemoteCluster.ClientType.HTTP.name())));
 
-        siteToSiteRemoteCluster.setKeystoreFilename("classpath:keystore.bks");
-        siteToSiteRemoteCluster.setKeystoreType("BKS");
-        siteToSiteRemoteCluster.setKeystorePassword("dky/UyjnxapXPeNNLE3/PRGpdAnCaOOmAAWg0F1Jm3Q");
-
-        siteToSiteRemoteCluster.setTruststoreFilename("classpath:truststore.bks");
-        siteToSiteRemoteCluster.setTruststoreType("BKS");
-        siteToSiteRemoteCluster.setTruststorePassword("Kr6ut7JD7DOxnquDhesorRAruHpRElS/lpzXWIt0e+M");
-
         SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
         siteToSiteClientConfig.setRemoteClusters(Collections.singletonList(siteToSiteRemoteCluster));
         siteToSiteClientConfig.setPortName(preferences.getString("input_port_preference", null));

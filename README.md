@@ -17,8 +17,11 @@ export ANDROID_HOME=YOUR_SDK_DIR
 // Need to be on right thread if updating UI, can return null handler in callback otherwise
 final Handler handler = new Handler(Looper.getMainLooper());
 
+SiteToSiteRemoteCluster siteToSiteRemoteCluster = new SiteToSiteRemoteCluster();
+siteToSiteRemoteCluster.setUrls(Arrays.asList("http://nifi.hostname:8080/nifi"));
+
 SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-siteToSiteClientConfig.setUrls(Arrays.asList("http://nifi.hostname:8080/nifi"));
+siteToSiteClientConfig.setRemoteClusters(Collections.singletonList(siteToSiteRemoteCluster));
 siteToSiteClientConfig.setPortName("From Android");
 
 Map<String, String> attributes = new HashMap<>();
@@ -47,8 +50,11 @@ SiteToSiteService.sendDataPacket(context, dataPacket, siteToSiteClientConfig, ne
 This example schedules a repeating callback using the AlarmManager to dataCollector.getDataPackets() and sends the results to NiFi.  This repeating alarm will persist even when the app is terminated.
 
 ```java
+SiteToSiteRemoteCluster siteToSiteRemoteCluster = new SiteToSiteRemoteCluster();
+siteToSiteRemoteCluster.setUrls(Arrays.asList("http://nifi.hostname:8080/nifi"));
+
 SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-siteToSiteClientConfig.setUrls(Arrays.asList("http://nifi.hostname:8080/nifi"));
+siteToSiteClientConfig.setRemoteClusters(Collections.singletonList(siteToSiteRemoteCluster));
 siteToSiteClientConfig.setPortName("From Android");
 
 // Can be any ParcelableTransactionResultCallback implementation
@@ -56,7 +62,7 @@ ParcelableTransactionResultCallback parcelableTransactionResultCallback = new Re
 
 // Can be any DataCollector implementation
 DataCollector dataCollector = new TestDataCollector("message");
-SiteToSiteRepeatableIntent siteToSiteRepeatableIntent = SiteToSiteRepeating.createPendingIntent(context, dataCollector, siteToSiteClientConfig, parcelableTransactionResultCallback);
+SiteToSiteRepeatableIntent siteToSiteRepeatableIntent = SiteToSiteRepeating.createSendPendingIntent(context, dataCollector, siteToSiteClientConfig, parcelableTransactionResultCallback);
 
 AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(), TimeUnit.MINUTES.toMillis(15), siteToSiteRepeatableIntent.getPendingIntent());
