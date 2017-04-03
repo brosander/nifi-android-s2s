@@ -1,5 +1,5 @@
 # Apache NiFi Site-to-Site Android library
-#### A small (currently ~= 125k), easy-to-use Android library for sending data to NiFi via the Site-to-Site protocol with only Android SDK dependencies
+#### A small (currently ~= 150k), easy-to-use Android library for sending data to NiFi via the Site-to-Site protocol with only Android SDK dependencies
 
 ### Building
 ```shell
