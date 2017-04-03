@@ -88,7 +88,7 @@ public class SiteToSiteJobServiceTest {
     @Test(timeout = 5000)
     public void testProcessOnePacket() throws Exception {
         DataPacket dataPacket = new ByteArrayDataPacket(Collections.singletonMap("id", "testId"), "testPayload".getBytes(Charsets.UTF_8));
-        queuedSiteToSiteClientConfig.getQueuedSiteToSiteClient(context).enqueue(dataPacket);
+        queuedSiteToSiteClientConfig.createQueuedClient(context).enqueue(dataPacket);
 
         mockNiFiS2SServer.enqueueSiteToSitePeers(Collections.singletonList(peer));
         String transactionPath = mockNiFiS2SServer.enqueuCreateTransaction(portIdentifier, transactionIdentifier, 30);
@@ -105,13 +105,13 @@ public class SiteToSiteJobServiceTest {
     }
 
     @Test(timeout = 25000)
-    public void temstProcessAThousandPackets() throws Exception {
+    public void testProcessAThousandPackets() throws Exception {
         int numPackets = 1000;
         List<DataPacket> dataPackets = new ArrayList<>(numPackets);
         for (int i = 0; i < numPackets; i++) {
             dataPackets.add(new ByteArrayDataPacket(Collections.singletonMap("id", "testId" + i), ("testPayload" + i).getBytes(Charsets.UTF_8)));
         }
-        queuedSiteToSiteClientConfig.getQueuedSiteToSiteClient(context).enqueue(dataPackets.iterator());
+        queuedSiteToSiteClientConfig.createQueuedClient(context).enqueue(dataPackets.iterator());
         SiteToSiteDBTestUtil.assertQueuedPacketCount(siteToSiteDB, numPackets);
 
         Collections.reverse(dataPackets);
