@@ -24,6 +24,7 @@ import org.apache.nifi.android.sitetosite.client.http.HttpSiteToSiteClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -35,11 +36,12 @@ public class SiteToSiteClientConfig implements Parcelable {
         @Override
         public SiteToSiteClientConfig createFromParcel(Parcel source) {
             SiteToSiteClientConfig result = new SiteToSiteClientConfig();
-            int remoteClusters = source.readInt();
-            result.remoteClusters = new ArrayList<>(remoteClusters);
-            for (int i = 0; i < remoteClusters; i++) {
-                result.remoteClusters.add(source.<SiteToSiteRemoteCluster>readParcelable(SiteToSiteClientConfig.class.getClassLoader()));
+            int numRemoteClusters = source.readInt();
+            List<SiteToSiteRemoteCluster> remoteClusters = new ArrayList<>(numRemoteClusters);
+            for (int i = 0; i < numRemoteClusters; i++) {
+                remoteClusters.add(source.<SiteToSiteRemoteCluster>readParcelable(SiteToSiteClientConfig.class.getClassLoader()));
             }
+            result.setRemoteClusters(remoteClusters);
             result.timeoutNanos = source.readLong();
             result.idleConnectionExpirationNanos = source.readLong();
             result.useCompression = Boolean.valueOf(source.readString());
@@ -57,6 +59,7 @@ public class SiteToSiteClientConfig implements Parcelable {
             return new SiteToSiteClientConfig[size];
         }
     };
+    public static final String NO_REMOTE_CLUSTERS_CONFIGURED = "No remote clusters configured.";
 
     private List<SiteToSiteRemoteCluster> remoteClusters = new ArrayList<>();
     private long timeoutNanos = TimeUnit.SECONDS.toNanos(30);
@@ -118,7 +121,7 @@ public class SiteToSiteClientConfig implements Parcelable {
     }
 
     public void setRemoteClusters(List<SiteToSiteRemoteCluster> remoteClusters) {
-        this.remoteClusters = remoteClusters;
+        this.remoteClusters = Collections.unmodifiableList(new ArrayList<>(remoteClusters));
     }
 
     /**
@@ -299,7 +302,7 @@ public class SiteToSiteClientConfig implements Parcelable {
             @Override
             public Transaction createTransaction() throws IOException {
                 if (remoteClusters.size() == 0) {
-                    throw new IOException("No remote clusters configured.");
+                    throw new IOException(NO_REMOTE_CLUSTERS_CONFIGURED);
                 }
                 IOException lastException = null;
                 for (SiteToSiteRemoteCluster remoteCluster : remoteClusters) {

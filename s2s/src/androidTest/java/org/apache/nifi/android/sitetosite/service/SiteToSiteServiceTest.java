@@ -29,6 +29,7 @@ import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDBTestUti
 import org.apache.nifi.android.sitetosite.client.protocol.ResponseCode;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.packet.DataPacket;
+import org.apache.nifi.android.sitetosite.packet.EmptyDataPacket;
 import org.apache.nifi.android.sitetosite.util.Charsets;
 import org.apache.nifi.android.sitetosite.util.MockNiFiS2SServer;
 import org.junit.Before;
@@ -36,9 +37,14 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import okhttp3.mockwebserver.MockResponse;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 public class SiteToSiteServiceTest {
@@ -114,6 +120,69 @@ public class SiteToSiteServiceTest {
         assertNull(transactionResultCallback.getIOException());
 
         mockNiFiS2SServer.verifyAssertions();
+    }
+
+    @Test(timeout = 5000)
+    public void testNoRemoteClustersThrowsException() throws InterruptedException {
+        siteToSiteClientConfig.setRemoteClusters(Collections.<SiteToSiteRemoteCluster>emptyList());
+        SiteToSiteService.sendDataPacket(context, new EmptyDataPacket(Collections.singletonMap("id", "testId")), siteToSiteClientConfig, transactionResultCallback);
+
+        IOException ioException = transactionResultCallback.getIOException();
+        assertNotNull(ioException);
+        assertEquals(SiteToSiteClientConfig.NO_REMOTE_CLUSTERS_CONFIGURED, ioException.getMessage());
+    }
+
+    @Test(timeout = 5000)
+    public void testFailoverSendPacket() throws Exception {
+        MockNiFiS2SServer bustedServer = new MockNiFiS2SServer();
+
+        SiteToSiteRemoteCluster badCluster = new SiteToSiteRemoteCluster();
+        badCluster.setUrls(Collections.singleton(bustedServer.getNifiApiUrl()));
+
+        SiteToSiteRemoteCluster goodCluster = new SiteToSiteRemoteCluster();
+        goodCluster.setUrls(Collections.singleton(mockNiFiS2SServer.getNifiApiUrl()));
+        siteToSiteClientConfig.setRemoteClusters(Arrays.asList(badCluster, goodCluster));
+
+        bustedServer.enqueue(new MockResponse().setResponseCode(500), bustedServer.getSiteToSitePeerListRequestAssertion());
+
+        DataPacket dataPacket = new ByteArrayDataPacket(Collections.singletonMap("id", "testId"), "testData".getBytes(Charsets.UTF_8));
+
+        mockNiFiS2SServer.enqueueSiteToSitePeers(Collections.singletonList(peer));
+        String transactionPath = mockNiFiS2SServer.enqueuCreateTransaction(portIdentifier, transactionIdentifier, 30);
+        mockNiFiS2SServer.enqueuDataPackets(transactionPath, Collections.singletonList(dataPacket), queuedSiteToSiteClientConfig);
+        mockNiFiS2SServer.enqueueTransactionComplete(transactionPath, 1, ResponseCode.CONFIRM_TRANSACTION, ResponseCode.CONFIRM_TRANSACTION);
+
+        SiteToSiteService.sendDataPacket(context, dataPacket, siteToSiteClientConfig, transactionResultCallback);
+        assertNull(transactionResultCallback.getIOException());
+
+        bustedServer.verifyAssertions();
+        mockNiFiS2SServer.verifyAssertions();
+    }
+
+    @Test(timeout = 5000)
+    public void testFailoverBothSendsFail() throws Exception {
+        MockNiFiS2SServer bustedServer = new MockNiFiS2SServer();
+        MockNiFiS2SServer bustedServer2 = new MockNiFiS2SServer();
+
+        SiteToSiteRemoteCluster badCluster = new SiteToSiteRemoteCluster();
+        badCluster.setUrls(Collections.singleton(bustedServer.getNifiApiUrl()));
+
+        SiteToSiteRemoteCluster badCluster2 = new SiteToSiteRemoteCluster();
+        badCluster2.setUrls(Collections.singleton(bustedServer2.getNifiApiUrl()));
+
+        siteToSiteClientConfig.setRemoteClusters(Arrays.asList(badCluster, badCluster2));
+
+        bustedServer.enqueue(new MockResponse().setResponseCode(500), bustedServer.getSiteToSitePeerListRequestAssertion());
+        bustedServer2.enqueue(new MockResponse().setResponseCode(500), bustedServer2.getSiteToSitePeerListRequestAssertion());
+
+        DataPacket dataPacket = new ByteArrayDataPacket(Collections.singletonMap("id", "testId"), "testData".getBytes(Charsets.UTF_8));
+
+        SiteToSiteService.sendDataPacket(context, dataPacket, siteToSiteClientConfig, transactionResultCallback);
+        IOException ioException = transactionResultCallback.getIOException();
+        assertNotNull(ioException);
+
+        bustedServer.verifyAssertions();
+        bustedServer2.verifyAssertions();
     }
 
     @Test(timeout = 5000)
