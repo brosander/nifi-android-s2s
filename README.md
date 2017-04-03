@@ -31,6 +31,10 @@ SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
 siteToSiteClientConfig.setRemoteClusters(Collections.singletonList(siteToSiteRemoteCluster));
 siteToSiteClientConfig.setPortName("From Android");
 ```
+
+##### Failover
+Failover can be configured by setting multiple remote clusters on the SiteToSiteClientConfig object.  The client will then try the remote clusters in the order they were specified.  This should result in failing over when necessary and then going back to the primary cluster when it is available again.
+
 #### Sample data
 ```java
 Map<String, String> attributes = new HashMap<>();
