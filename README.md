@@ -25,7 +25,7 @@ export ANDROID_HOME=YOUR_SDK_DIR
 final Handler handler = new Handler(Looper.getMainLooper());
 
 SiteToSiteRemoteCluster siteToSiteRemoteCluster = new SiteToSiteRemoteCluster();
-siteToSiteRemoteCluster.setUrls(Arrays.asList("http://nifi.hostname:8080/nifi"));
+siteToSiteRemoteCluster.setUrls(Collections.singletonList("http://nifi.hostname:8080/nifi"));
 
 SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
 siteToSiteClientConfig.setRemoteClusters(Collections.singletonList(siteToSiteRemoteCluster));
@@ -34,12 +34,26 @@ siteToSiteClientConfig.setPortName("From Android");
 
 ##### Failover
 Failover can be configured by setting multiple remote clusters on the SiteToSiteClientConfig object.  The client will then try the remote clusters in the order they were specified.  This should result in failing over when necessary and then going back to the primary cluster when it is available again.
+```java
+SiteToSiteRemoteCluster siteToSiteRemoteCluster = new SiteToSiteRemoteCluster();
+siteToSiteRemoteCluster.setUrls(Arrays.asList("http://nifi.primary.hostname:8080/nifi"));
+
+SiteToSiteRemoteCluster siteToSiteFailoverRemoteCluster = new SiteToSiteRemoteCluster();
+siteToSiteFailoverRemoteCluster.setUrls(Arrays.asList("http://nifi.failover.hostname:8080/nifi"));
+
+SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
+siteToSiteClientConfig.setRemoteClusters(Arrays.asList(siteToSiteRemoteCluster, siteToSiteFailoverRemoteCluster));
+siteToSiteClientConfig.setPortName("From Android");
+```
 
 #### Sample data
+Example data packet(s) that will be used in below examples
 ```java
 Map<String, String> attributes = new HashMap<>();
 attributes.put("key", "value");
 DataPacket dataPacket = new ByteArrayDataPacket(attributes, "message".getBytes(Charsets.UTF_8));
+
+List<DataPacket> dataPackets = Arrays.asList(dataPacket)
 ```
 #### One-shot
 
@@ -47,12 +61,19 @@ DataPacket dataPacket = new ByteArrayDataPacket(attributes, "message".getBytes(C
 // Synchronous
 SiteToSiteClient siteToSiteClient = siteToSiteClientConfig.createClient();
 Transaction transaction = siteToSiteClient.createTransaction();
+
 transaction.send(dataPacket);
+// or
+for (DataPacket dataPacket : dataPackets) {
+  transaction.send(dataPacket);
+}
+
 transaction.confirm();
 TransactionResult transactionResult = transaction.complete();
 
 // Asynchronous
 SiteToSiteService.sendDataPacket(context, dataPacket, siteToSiteClientConfig, new TransactionResultCallback() {});
+SiteToSiteService.sendDataPackets(context, dataPackets, siteToSiteClientConfig, new TransactionResultCallback() {});
 ```
 
 #### Repeating
@@ -99,10 +120,12 @@ queuedSiteToSiteClientConfig.setMaxSize(1024 * 100);
 ##### One-shot
 
 ###### Enqueue
+Add data packet(s) to queue to send later
 ```java
 // Synchronous
 QueuedSiteToSiteClient queuedSiteToSiteClient = queuedSiteToSiteClientConfig.getQueuedSiteToSiteClient(context);
 queuedSiteToSiteClient.enqueue(dataPacket);
+queuedSiteToSiteClient.enqueue(dataPackets.iterator());
 
 // Asynchronous
 SiteToSiteService.enqueueDataPacket(context, dataPacket, queuedSiteToSiteClientConfig, new QueuedOperationResultCallback(){});
@@ -115,6 +138,7 @@ alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClo
 ```
 
 ###### Process
+Try to send all queued data packets whose ttl hasn't expired to NiFi
 ```java
 // Synchronous
 queuedSiteToSiteClient.process();
@@ -132,9 +156,11 @@ JobInfo.Builder processJobInfoBuilder = SiteToSiteJobService.createProcessJobInf
 processJobInfoBuilder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED);
 processJobInfoBuilder.setRequiresCharging(true);
 JobScheduler jobScheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
+jobScheduler.schedule(processJobInfoBuilder.build())
 ```
 
 ###### Cleanup
+Remove rows to satisfy maxRows, maxSize, ttl criteria
 ```java
 // Synchronous
 queuedSiteToSiteClient.cleanup();
