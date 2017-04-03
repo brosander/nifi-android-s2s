@@ -1,6 +1,7 @@
 package org.apache.nifi.android.sitetosite.client.peer;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
 import org.apache.nifi.android.sitetosite.client.http.HttpSiteToSiteClient;
 import org.apache.nifi.android.sitetosite.util.MockNiFiS2SServer;
 import org.hamcrest.Matchers;
@@ -34,6 +35,7 @@ public class PeerTrackerTest {
     private int flowFileCount;
     private String nifiApiUrl;
     private SiteToSiteClientConfig siteToSiteClientConfig;
+    private SiteToSiteRemoteCluster siteToSiteRemoteCluster;
 
     @Before
     public void setup() throws IOException {
@@ -44,8 +46,10 @@ public class PeerTrackerTest {
         peer = new Peer(nifiApiUrl, flowFileCount);
 
         siteToSiteClientConfig = new SiteToSiteClientConfig();
-        siteToSiteClientConfig.setUrls(Arrays.asList(nifiApiUrl));
-        assertNull(siteToSiteClientConfig.getPeerStatus());
+        siteToSiteRemoteCluster = new SiteToSiteRemoteCluster();
+        siteToSiteRemoteCluster.setUrls(Collections.singleton(nifiApiUrl));
+        siteToSiteClientConfig.setRemoteClusters(Collections.singletonList(siteToSiteRemoteCluster));
+        assertNull(siteToSiteRemoteCluster.getPeerStatus());
     }
 
     @Test
@@ -55,9 +59,9 @@ public class PeerTrackerTest {
         mockNiFiS2SServer.enqueueInputPorts(Collections.singletonMap(portName, "portId"));
         siteToSiteClientConfig.setPortName(portName);
 
-        new HttpSiteToSiteClient(siteToSiteClientConfig);
+        new HttpSiteToSiteClient(siteToSiteClientConfig, siteToSiteRemoteCluster);
 
-        PeerStatus peerStatus = siteToSiteClientConfig.getPeerStatus();
+        PeerStatus peerStatus = siteToSiteRemoteCluster.getPeerStatus();
         List<Peer> peers = peerStatus.getPeers();
         assertEquals(1, peers.size());
         assertEquals(peer, peers.get(0));
@@ -70,25 +74,25 @@ public class PeerTrackerTest {
         expectedException.expectMessage(Matchers.startsWith(RECEIVED_RESPONSE_CODE + 400 + WHEN_OPENING));
 
         mockNiFiS2SServer.getMockWebServer().enqueue(new MockResponse().setResponseCode(400));
-        new HttpSiteToSiteClient(siteToSiteClientConfig);
+        new HttpSiteToSiteClient(siteToSiteClientConfig, siteToSiteRemoteCluster);
     }
 
     @Test
     public void testRefreshPeers() throws Exception {
         long before = System.currentTimeMillis();
-        siteToSiteClientConfig.setPeerStatus(new PeerStatus(Arrays.asList(peer), 0L));
+        siteToSiteRemoteCluster.setPeerStatus(new PeerStatus(Arrays.asList(peer), 0L));
 
         mockNiFiS2SServer.enqueueSiteToSitePeers(Arrays.asList(peer));
         String portName = "portName";
         mockNiFiS2SServer.enqueueInputPorts(Collections.singletonMap(portName, "portId"));
         siteToSiteClientConfig.setPortName(portName);
 
-        new HttpSiteToSiteClient(siteToSiteClientConfig);
+        new HttpSiteToSiteClient(siteToSiteClientConfig, siteToSiteRemoteCluster);
 
         long after = System.currentTimeMillis();
 
         mockNiFiS2SServer.verifyAssertions();
-        PeerStatus peerStatus = siteToSiteClientConfig.getPeerStatus();
+        PeerStatus peerStatus = siteToSiteRemoteCluster.getPeerStatus();
         assertTrue(peerStatus.getLastPeerUpdate() >= before);
         assertTrue(peerStatus.getLastPeerUpdate() <= after);
     }
@@ -96,14 +100,14 @@ public class PeerTrackerTest {
     @Test
     public void testNoRefreshPeersIfJustDid() throws Exception {
         long lastPeerUpdate = System.currentTimeMillis() - 1;
-        siteToSiteClientConfig.setPeerStatus(new PeerStatus(Arrays.asList(peer), lastPeerUpdate));
+        siteToSiteRemoteCluster.setPeerStatus(new PeerStatus(Arrays.asList(peer), lastPeerUpdate));
         String portName = "portName";
         mockNiFiS2SServer.enqueueInputPorts(Collections.singletonMap(portName, "portId"));
         siteToSiteClientConfig.setPortName(portName);
 
-        new HttpSiteToSiteClient(siteToSiteClientConfig);
+        new HttpSiteToSiteClient(siteToSiteClientConfig, siteToSiteRemoteCluster);
 
-        assertEquals(lastPeerUpdate, siteToSiteClientConfig.getPeerStatus().getLastPeerUpdate());
+        assertEquals(lastPeerUpdate, siteToSiteRemoteCluster.getPeerStatus().getLastPeerUpdate());
         mockNiFiS2SServer.verifyAssertions();
     }
 
@@ -118,7 +122,7 @@ public class PeerTrackerTest {
         nameToIdMap.put(portName, portIdentifier);
         mockNiFiS2SServer.enqueueInputPorts(nameToIdMap);
 
-        assertEquals(portIdentifier, new HttpSiteToSiteClient(siteToSiteClientConfig).getPortIdentifier());
+        assertEquals(portIdentifier, new HttpSiteToSiteClient(siteToSiteClientConfig, siteToSiteRemoteCluster).getPortIdentifier());
         mockNiFiS2SServer.verifyAssertions();
     }
 
@@ -129,6 +133,6 @@ public class PeerTrackerTest {
 
         mockNiFiS2SServer.getMockWebServer().enqueue(new MockResponse().setResponseCode(400));
 
-        new HttpSiteToSiteClient(siteToSiteClientConfig);
+        new HttpSiteToSiteClient(siteToSiteClientConfig, siteToSiteRemoteCluster);
     }
 }

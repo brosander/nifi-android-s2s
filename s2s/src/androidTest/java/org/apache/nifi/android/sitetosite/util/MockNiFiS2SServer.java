@@ -36,7 +36,6 @@ import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.LOCATIO
 import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.LOCATION_URI_INTENT_VALUE;
 import static org.apache.nifi.android.sitetosite.client.http.HttpHeaders.SERVER_SIDE_TRANSACTION_TTL;
 import static org.apache.nifi.android.sitetosite.client.http.HttpSiteToSiteClient.SITE_TO_SITE_PEERS_PATH;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -44,15 +43,29 @@ public class MockNiFiS2SServer {
     private final MockWebServer mockWebServer;
     private final List<RequestAssertion> requestAssertions;
     private int verifyIndex = 0;
+    private final RequestAssertion siteToSitePeerListRequestAssertion;
 
     public MockNiFiS2SServer() throws IOException {
         mockWebServer = new MockWebServer();
         mockWebServer.start();
         requestAssertions = new ArrayList<>();
+
+        siteToSitePeerListRequestAssertion = new RequestAssertion() {
+            @Override
+            public RecordedRequest check() throws Exception {
+                RecordedRequest recordedRequest = mockWebServer.takeRequest();
+                assertEquals(PeerTracker.NIFI_API_PATH + SITE_TO_SITE_PEERS_PATH, recordedRequest.getPath());
+                return recordedRequest;
+            }
+        };
     }
 
     public String getNifiApiUrl() {
         return mockWebServer.url("/nifi-api").toString();
+    }
+
+    public RequestAssertion getSiteToSitePeerListRequestAssertion() {
+        return siteToSitePeerListRequestAssertion;
     }
 
     public List<RecordedRequest> verifyAssertions() throws Exception {
@@ -83,9 +96,7 @@ public class MockNiFiS2SServer {
         if (ttl != null) {
             mockResponse = mockResponse.addHeader(SERVER_SIDE_TRANSACTION_TTL, ttl.toString());
         }
-        mockWebServer.enqueue(mockResponse);
-
-        requestAssertions.add(new RequestAssertion() {
+        enqueue(mockResponse, new RequestAssertion() {
             @Override
             public RecordedRequest check() throws Exception {
                 RecordedRequest recordedRequest = mockWebServer.takeRequest();
@@ -98,9 +109,7 @@ public class MockNiFiS2SServer {
     }
 
     public void enqueueTtlExtension(final String transactionPath) {
-        mockWebServer.enqueue(new MockResponse());
-
-        requestAssertions.add(new RequestAssertion() {
+        enqueue(new MockResponse(), new RequestAssertion() {
             @Override
             public RecordedRequest check() throws Exception {
                 RecordedRequest recordedRequest = mockWebServer.takeRequest();
@@ -122,9 +131,7 @@ public class MockNiFiS2SServer {
         for (DataPacket dataPacket : dataPackets) {
             dataPacketWriter.write(dataPacket);
         }
-        mockWebServer.enqueue(new MockResponse().setBody(Long.toString(dataPacketWriter.close())));
-
-        requestAssertions.add(new RequestAssertion() {
+        enqueue(new MockResponse().setBody(Long.toString(dataPacketWriter.close())), new RequestAssertion() {
             @Override
             public RecordedRequest check() throws Exception {
                 RecordedRequest recordedRequest = mockWebServer.takeRequest();
@@ -152,9 +159,7 @@ public class MockNiFiS2SServer {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put(TransactionResultParser.FLOW_FILE_SENT, flowFileSent);
         jsonObject.put(TransactionResultParser.RESPONSE_CODE, replyResponseCode.getCode());
-        mockWebServer.enqueue(new MockResponse().setBody(jsonObject.toString()));
-
-        requestAssertions.add(new RequestAssertion() {
+        enqueue(new MockResponse().setBody(jsonObject.toString()), new RequestAssertion() {
             @Override
             public RecordedRequest check() throws Exception {
                 RecordedRequest recordedRequest = mockWebServer.takeRequest();
@@ -166,27 +171,21 @@ public class MockNiFiS2SServer {
         });
     }
 
+    public void enqueue(MockResponse response, RequestAssertion requestAssertion) {
+        mockWebServer.enqueue(response);
+        requestAssertions.add(requestAssertion);
+    }
+
     public void enqueueSiteToSitePeers(Collection<Peer> peers) throws JSONException, MalformedURLException {
         List<JSONObject> peerJsonObjects = new ArrayList<>(peers.size());
         for (Peer peer : peers) {
             peerJsonObjects.add(getPeerJSONObject(peer.isSecure(), peer.getHostname(), peer.getHttpPort(), peer.getFlowFileCount()));
         }
-        mockWebServer.enqueue(new MockResponse().setBody(getPeersJson(peerJsonObjects)));
-
-        requestAssertions.add(new RequestAssertion() {
-            @Override
-            public RecordedRequest check() throws Exception {
-                RecordedRequest recordedRequest = mockWebServer.takeRequest();
-                assertEquals(PeerTracker.NIFI_API_PATH + SITE_TO_SITE_PEERS_PATH, recordedRequest.getPath());
-                return recordedRequest;
-            }
-        });
+        enqueue(new MockResponse().setBody(getPeersJson(peerJsonObjects)), siteToSitePeerListRequestAssertion);
     }
 
     public void enqueueInputPorts(Map<String, String> nameToIdMap) throws JSONException {
-        mockWebServer.enqueue(new MockResponse().setBody(getPortIdentifierJSONObject(nameToIdMap).toString()));
-
-        requestAssertions.add(new RequestAssertion() {
+        enqueue(new MockResponse().setBody(getPortIdentifierJSONObject(nameToIdMap).toString()), new RequestAssertion() {
             @Override
             public RecordedRequest check() throws Exception {
                 RecordedRequest recordedRequest = mockWebServer.takeRequest();

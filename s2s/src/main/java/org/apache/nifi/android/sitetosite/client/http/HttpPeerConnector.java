@@ -20,6 +20,7 @@ package org.apache.nifi.android.sitetosite.client.http;
 import android.util.Base64;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
 import org.apache.nifi.android.sitetosite.util.Charsets;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -57,25 +58,27 @@ public class HttpPeerConnector {
 
     private final String peerUrl;
     private final SiteToSiteClientConfig siteToSiteClientConfig;
+    private final SiteToSiteRemoteCluster siteToSiteRemoteCluster;
     private final SSLSocketFactory socketFactory;
     private final Proxy proxy;
     private final String proxyAuth;
     private String authorization;
     private long authorizationExpiration;
 
-    public HttpPeerConnector(String peerUrl, SiteToSiteClientConfig siteToSiteClientConfig) {
+    public HttpPeerConnector(String peerUrl, SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteRemoteCluster siteToSiteRemoteCluster) {
         this.peerUrl = peerUrl;
         this.siteToSiteClientConfig = siteToSiteClientConfig;
-        SSLContext sslContext = siteToSiteClientConfig.getSslContext();
+        this.siteToSiteRemoteCluster = siteToSiteRemoteCluster;
+        SSLContext sslContext = siteToSiteRemoteCluster.getSslContext();
         if (sslContext != null) {
             socketFactory = sslContext.getSocketFactory();
         } else {
             socketFactory = null;
         }
-        proxy = getProxy(siteToSiteClientConfig);
-        String proxyUsername = siteToSiteClientConfig.getProxyUsername();
+        proxy = getProxy(siteToSiteRemoteCluster);
+        String proxyUsername = siteToSiteRemoteCluster.getProxyUsername();
         if (proxy != null && proxyUsername != null && !proxyUsername.isEmpty()) {
-            proxyAuth = Base64.encodeToString((proxyUsername + ":" + siteToSiteClientConfig.getProxyPassword()).getBytes(Charsets.UTF_8), Base64.DEFAULT);
+            proxyAuth = Base64.encodeToString((proxyUsername + ":" + siteToSiteRemoteCluster.getProxyPassword()).getBytes(Charsets.UTF_8), Base64.DEFAULT);
         } else {
             proxyAuth = null;
         }
@@ -220,13 +223,13 @@ public class HttpPeerConnector {
         return httpURLConnection;
     }
 
-    private Proxy getProxy(SiteToSiteClientConfig siteToSiteClientConfig) {
-        String proxyHost = siteToSiteClientConfig.getProxyHost();
+    private Proxy getProxy(SiteToSiteRemoteCluster siteToSiteRemoteCluster) {
+        String proxyHost = siteToSiteRemoteCluster.getProxyHost();
         if (proxyHost == null || proxyHost.isEmpty()) {
             return null;
         }
 
-        int proxyPort = siteToSiteClientConfig.getProxyPort();
+        int proxyPort = siteToSiteRemoteCluster.getProxyPort();
         int port = 80;
         if (proxyPort <= 65535 && proxyPort > 0) {
             port = proxyPort;
@@ -240,13 +243,13 @@ public class HttpPeerConnector {
             return;
         }
 
-        String username = siteToSiteClientConfig.getUsername();
+        String username = siteToSiteRemoteCluster.getUsername();
         if (username == null || username.isEmpty()) {
             authorizationExpiration = Long.MAX_VALUE;
             return;
         }
 
-        String password = siteToSiteClientConfig.getPassword();
+        String password = siteToSiteRemoteCluster.getPassword();
         Map<String, String> map = new HashMap<>();
         map.put(ACCEPT, "text/plain");
         map.put(CONTENT_TYPE, "application/x-www-form-urlencoded");

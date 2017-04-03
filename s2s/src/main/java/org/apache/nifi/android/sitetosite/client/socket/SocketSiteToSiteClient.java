@@ -19,6 +19,7 @@ package org.apache.nifi.android.sitetosite.client.socket;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
 import org.apache.nifi.android.sitetosite.client.http.HttpPeerConnector;
 import org.apache.nifi.android.sitetosite.client.peer.Peer;
 import org.apache.nifi.android.sitetosite.client.peer.PeerConnectorFactory;
@@ -33,23 +34,25 @@ import java.util.Collections;
 import java.util.List;
 
 public class SocketSiteToSiteClient implements PeerUpdater, SiteToSiteClient {
-    public static final PeerConnectorFactory<SocketPeerConnector> CONNECTOR_FACTORY = new PeerConnectorFactory<SocketPeerConnector>() {
+    public final PeerConnectorFactory<SocketPeerConnector> CONNECTOR_FACTORY = new PeerConnectorFactory<SocketPeerConnector>() {
         @Override
-        public SocketPeerConnector create(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
+        public SocketPeerConnector create(Peer peer) throws IOException {
             int rawPort = peer.getRawPort();
             if (rawPort <= 0 || rawPort > 65535) {
                 return null;
             }
-            return new SocketPeerConnector(peer, siteToSiteClientConfig);
+            return new SocketPeerConnector(peer, siteToSiteClientConfig, siteToSiteRemoteCluster);
         }
     };
 
     private final SiteToSiteClientConfig siteToSiteClientConfig;
+    private final SiteToSiteRemoteCluster siteToSiteRemoteCluster;
     private final PeerTracker peerTracker;
 
-    public SocketSiteToSiteClient(SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
+    public SocketSiteToSiteClient(SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteRemoteCluster siteToSiteRemoteCluster) throws IOException {
         this.siteToSiteClientConfig = siteToSiteClientConfig;
-        peerTracker = new PeerTracker(siteToSiteClientConfig, this);
+        this.siteToSiteRemoteCluster = siteToSiteRemoteCluster;
+        peerTracker = new PeerTracker(siteToSiteClientConfig, siteToSiteRemoteCluster, this);
 
         peerTracker.performHttpOperation(new PeerOperation<Void, HttpPeerConnector>() {
             @Override

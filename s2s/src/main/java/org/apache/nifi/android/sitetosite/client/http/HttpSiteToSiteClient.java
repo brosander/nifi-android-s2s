@@ -19,6 +19,7 @@ package org.apache.nifi.android.sitetosite.client.http;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClient;
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
 import org.apache.nifi.android.sitetosite.client.http.parser.PeerListParser;
 import org.apache.nifi.android.sitetosite.client.peer.Peer;
 import org.apache.nifi.android.sitetosite.client.peer.PeerOperation;
@@ -47,9 +48,9 @@ public class HttpSiteToSiteClient implements PeerUpdater, SiteToSiteClient {
     private final SiteToSiteClientConfig siteToSiteClientConfig;
     private final ScheduledExecutorService ttlExtendTaskExecutor;
 
-    public HttpSiteToSiteClient(SiteToSiteClientConfig siteToSiteClientConfig) throws IOException {
+    public HttpSiteToSiteClient(SiteToSiteClientConfig siteToSiteClientConfig, SiteToSiteRemoteCluster siteToSiteRemoteCluster) throws IOException {
         this.siteToSiteClientConfig = siteToSiteClientConfig;
-        peerTracker = new PeerTracker(siteToSiteClientConfig, this);
+        peerTracker = new PeerTracker(siteToSiteClientConfig, siteToSiteRemoteCluster, this);
 
         String portIdentifier = siteToSiteClientConfig.getPortIdentifier();
         if (portIdentifier == null) {

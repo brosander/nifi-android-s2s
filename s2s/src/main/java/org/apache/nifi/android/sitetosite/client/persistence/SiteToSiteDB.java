@@ -26,6 +26,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Parcel;
 
 import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
 import org.apache.nifi.android.sitetosite.client.peer.PeerStatus;
 
 import java.util.ArrayList;
@@ -113,25 +114,25 @@ public class SiteToSiteDB {
      * @param siteToSiteClientConfig the configuration to save the peer status for
      */
     public void savePeerStatus(SiteToSiteClientConfig siteToSiteClientConfig) throws SQLiteIOException {
-        PeerStatus peerStatus = siteToSiteClientConfig.getPeerStatus();
-        if (peerStatus == null) {
-            return;
-        }
-
-        Parcel parcel = Parcel.obtain();
-        peerStatus.writeToParcel(parcel, 0);
-        parcel.setDataPosition(0);
-        byte[] bytes = parcel.marshall();
-
-        String urlsString = getPeerUrlsString(siteToSiteClientConfig.getUrls());
-        String proxyHost = siteToSiteClientConfig.getProxyHost();
-        int proxyPort = siteToSiteClientConfig.getProxyPort();
-
         SQLiteDatabase writableDatabase = sqLiteOpenHelper.getWritableDatabase();
         writableDatabase.beginTransaction();
         try {
-            try {
-                writableDatabase.execSQL("DELETE FROM " + PEER_STATUSES_TABLE_NAME + " WHERE " + EXPIRATION_MILLIS_COLUMN + " <= ?", new Object[]{new Date().getTime()});
+            writableDatabase.execSQL("DELETE FROM " + PEER_STATUSES_TABLE_NAME + " WHERE " + EXPIRATION_MILLIS_COLUMN + " <= ?", new Object[]{new Date().getTime()});
+            for (SiteToSiteRemoteCluster siteToSiteRemoteCluster : siteToSiteClientConfig.getRemoteClusters()) {
+                PeerStatus peerStatus = siteToSiteRemoteCluster.getPeerStatus();
+                if (peerStatus == null) {
+                    return;
+                }
+
+                Parcel parcel = Parcel.obtain();
+                peerStatus.writeToParcel(parcel, 0);
+                parcel.setDataPosition(0);
+                byte[] bytes = parcel.marshall();
+
+                String urlsString = getPeerUrlsString(siteToSiteRemoteCluster.getUrls());
+                String proxyHost = siteToSiteRemoteCluster.getProxyHost();
+                int proxyPort = siteToSiteRemoteCluster.getProxyPort();
+
                 writableDatabase.delete(PEER_STATUSES_TABLE_NAME, PEER_STATUS_WHERE_CLAUSE, new String[]{urlsString, proxyHost, Integer.toString(proxyPort)});
                 ContentValues values = new ContentValues();
                 values.put(PEER_STATUS_URLS_COLUMN, urlsString);
@@ -145,13 +146,12 @@ public class SiteToSiteDB {
                 values.put(CONTENT_COLUMN, bytes);
                 values.put(EXPIRATION_MILLIS_COLUMN, new Date().getTime() + siteToSiteClientConfig.getPeerUpdateInterval(TimeUnit.MILLISECONDS));
                 writableDatabase.insertOrThrow(PEER_STATUSES_TABLE_NAME, null, values);
-                writableDatabase.setTransactionSuccessful();
-            } finally {
-                writableDatabase.endTransaction();
             }
+            writableDatabase.setTransactionSuccessful();
         } catch (SQLiteException e) {
             throw new SQLiteIOException("Unable to store peer status in database.", e);
         } finally {
+            writableDatabase.endTransaction();
             writableDatabase.close();
         }
     }
@@ -162,43 +162,44 @@ public class SiteToSiteDB {
      * @param siteToSiteClientConfig the config to get peer status for
      */
     public void updatePeerStatusOnConfig(SiteToSiteClientConfig siteToSiteClientConfig) throws SQLiteIOException {
-        PeerStatus origPeerStatus = siteToSiteClientConfig.getPeerStatus();
-
-        List<String> parameters = new ArrayList<>();
-
-        String peerUrlsString = getPeerUrlsString(siteToSiteClientConfig.getUrls());
-        StringBuilder queryString = new StringBuilder(PEER_STATUS_URLS_COLUMN).append(" = ? AND ").append(PEER_STATUS_PROXY_HOST_COLUMN);
-        parameters.add(peerUrlsString);
-
-        String proxyHost = siteToSiteClientConfig.getProxyHost();
-        if (proxyHost == null || proxyHost.isEmpty()) {
-            queryString.append(" IS NULL AND ").append(PEER_STATUS_PROXY_PORT_COLUMN).append(" IS NULL");
-        } else {
-            queryString.append(" = ? AND ").append(PEER_STATUS_PROXY_PORT_COLUMN).append(" = ?");
-            parameters.add(proxyHost);
-            parameters.add(Integer.toString(siteToSiteClientConfig.getProxyPort()));
-        }
-
         SQLiteDatabase readableDatabase = sqLiteOpenHelper.getReadableDatabase();
         try {
-            Cursor cursor;
-            cursor = readableDatabase.query(false, PEER_STATUSES_TABLE_NAME, new String[]{CONTENT_COLUMN}, queryString.toString(),
-                    parameters.toArray(new String[parameters.size()]), null, null, null, null);
-            try {
-                int contentIndex = cursor.getColumnIndexOrThrow(CONTENT_COLUMN);
-                while (cursor.moveToNext()) {
-                    byte[] bytes = cursor.getBlob(contentIndex);
-                    Parcel parcel = Parcel.obtain();
-                    parcel.unmarshall(bytes, 0, bytes.length);
-                    parcel.setDataPosition(0);
-                    PeerStatus dbPeerStatus = PeerStatus.CREATOR.createFromParcel(parcel);
-                    if (dbPeerStatus != null && (origPeerStatus == null || origPeerStatus.getLastPeerUpdate() < dbPeerStatus.getLastPeerUpdate())) {
-                        siteToSiteClientConfig.setPeerStatus(dbPeerStatus);
-                        origPeerStatus = dbPeerStatus;
-                    }
+            for (SiteToSiteRemoteCluster siteToSiteRemoteCluster : siteToSiteClientConfig.getRemoteClusters()) {
+                PeerStatus origPeerStatus = siteToSiteRemoteCluster.getPeerStatus();
+
+                List<String> parameters = new ArrayList<>();
+
+                String peerUrlsString = getPeerUrlsString(siteToSiteRemoteCluster.getUrls());
+                StringBuilder queryString = new StringBuilder(PEER_STATUS_URLS_COLUMN).append(" = ? AND ").append(PEER_STATUS_PROXY_HOST_COLUMN);
+                parameters.add(peerUrlsString);
+
+                String proxyHost = siteToSiteRemoteCluster.getProxyHost();
+                if (proxyHost == null || proxyHost.isEmpty()) {
+                    queryString.append(" IS NULL AND ").append(PEER_STATUS_PROXY_PORT_COLUMN).append(" IS NULL");
+                } else {
+                    queryString.append(" = ? AND ").append(PEER_STATUS_PROXY_PORT_COLUMN).append(" = ?");
+                    parameters.add(proxyHost);
+                    parameters.add(Integer.toString(siteToSiteRemoteCluster.getProxyPort()));
                 }
-            } finally {
-                cursor.close();
+                Cursor cursor;
+                cursor = readableDatabase.query(false, PEER_STATUSES_TABLE_NAME, new String[]{CONTENT_COLUMN}, queryString.toString(),
+                        parameters.toArray(new String[parameters.size()]), null, null, null, null);
+                try {
+                    int contentIndex = cursor.getColumnIndexOrThrow(CONTENT_COLUMN);
+                    while (cursor.moveToNext()) {
+                        byte[] bytes = cursor.getBlob(contentIndex);
+                        Parcel parcel = Parcel.obtain();
+                        parcel.unmarshall(bytes, 0, bytes.length);
+                        parcel.setDataPosition(0);
+                        PeerStatus dbPeerStatus = PeerStatus.CREATOR.createFromParcel(parcel);
+                        if (dbPeerStatus != null && (origPeerStatus == null || origPeerStatus.getLastPeerUpdate() < dbPeerStatus.getLastPeerUpdate())) {
+                            siteToSiteRemoteCluster.setPeerStatus(dbPeerStatus);
+                            origPeerStatus = dbPeerStatus;
+                        }
+                    }
+                } finally {
+                    cursor.close();
+                }
             }
         } catch (SQLiteException e) {
             throw new SQLiteIOException("Unable to read peer status from database.", e);

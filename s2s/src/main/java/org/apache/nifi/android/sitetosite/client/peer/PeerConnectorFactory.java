@@ -22,5 +22,5 @@ import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 import java.io.IOException;
 
 public interface PeerConnectorFactory<T> {
-    T create(Peer peer, SiteToSiteClientConfig siteToSiteClientConfig) throws IOException;
+    T create(Peer peer) throws IOException;
 }
