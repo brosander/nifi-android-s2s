@@ -173,3 +173,11 @@ SiteToSiteRepeatableIntent siteToSiteRepeatableIntent = SiteToSiteRepeating.crea
 AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(), TimeUnit.MINUTES.toMillis(15), siteToSiteRepeatableIntent.getPendingIntent());
 ```
+
+### FAQ
+Q. My keystore/truststore fails to load
+
+A. Android doesn't support the JKS keystore type.  Recommend converting to BKS:
+```shell
+keytool -importkeystore -srckeystore truststore.jks -srcstoretype JKS -srcstorepass YOUR_JKS_PASSWORD -destkeystore truststore.bks -deststoretype BKS -deststorepass DESIRED_BKS_PASSWORD -provider org.bouncycastle.jce.provider.BouncyCastleProvider -providerpath YOUR_NIFI_HOME_DIR/lib/bootstrap/bcprov-jdk15on-1.55.jar
+```
