@@ -15,22 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetositedemo.preference;
+package org.apache.nifi.android.sitetosite.factory;
 
-import android.preference.PreferenceActivity;
+import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
 
-import org.apache.nifi.android.sitetositedemo.R;
-
-import java.util.List;
-
-public class SiteToSitePreferenceActivity extends PreferenceActivity {
-    @Override
-    public void onBuildHeaders(List<Header> target) {
-        loadHeadersFromResource(R.xml.headers_preference, target);
-    }
-
-    @Override
-    protected boolean isValidFragment(String fragmentName) {
-        return ProxyPreferenceFragment.class.getName().equals(fragmentName) || PeerPreferenceFragment.class.getName().equals(fragmentName);
-    }
+public interface SiteToSiteClientConfigFactory<InputType> {
+    SiteToSiteClientConfig create(InputType input) throws SiteToSiteClientConfigCreationException;
 }

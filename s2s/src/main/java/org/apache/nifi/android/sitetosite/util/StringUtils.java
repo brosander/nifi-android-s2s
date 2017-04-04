@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetositedemo.preference;
+package org.apache.nifi.android.sitetosite.util;
 
-import android.os.Bundle;
-import android.preference.PreferenceFragment;
+public class StringUtils {
+    public static boolean isNullOrEmpty(String value) {
+        return value == null || value.isEmpty();
+    }
 
-import org.apache.nifi.android.sitetositedemo.R;
-
-public class PeerPreferenceFragment extends PreferenceFragment {
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        addPreferencesFromResource(R.xml.peer_fragment_preference);
+    public static String emptyToNull(String value) {
+        if (isNullOrEmpty(value)) {
+            return null;
+        }
+        return value;
     }
 }

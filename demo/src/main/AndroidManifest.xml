@@ -33,6 +33,5 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="org.apache.nifi.android.sitetositedemo.preference.SiteToSitePreferenceActivity" android:label="Settings"></activity>
     </application>
 </manifest>

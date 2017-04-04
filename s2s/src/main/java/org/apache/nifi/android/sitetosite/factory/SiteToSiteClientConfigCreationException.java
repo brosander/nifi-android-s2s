@@ -15,17 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.nifi.android.sitetositedemo.preference;
+package org.apache.nifi.android.sitetosite.factory;
 
-import android.os.Bundle;
-import android.preference.PreferenceFragment;
+public class SiteToSiteClientConfigCreationException extends Exception {
+    public SiteToSiteClientConfigCreationException(String message) {
+        super(message);
+    }
 
-import org.apache.nifi.android.sitetositedemo.R;
-
-public class ProxyPreferenceFragment extends PreferenceFragment {
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        addPreferencesFromResource(R.xml.proxy_fragment_preference);
+    public SiteToSiteClientConfigCreationException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

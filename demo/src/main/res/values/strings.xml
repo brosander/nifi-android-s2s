@@ -27,20 +27,10 @@
     <string name="alarm_interval_prompt">Alarm Interval: </string>
     <string name="interval_units_prompt">Units</string>
     <string name="default_seconds" translatable="false">60</string>
-    <string name="preferences">Preferences</string>
     <string-array name="interval_units">
         <item>MS</item>
         <item>S</item>
         <item>M</item>
         <item>H</item>
-    </string-array>
-    <string-array name="client_types">
-        <item>HTTP</item>
-        <item>RAW</item>
-    </string-array>
-
-    <string-array name="client_types_values" translatable="false">
-        <item>HTTP</item>
-        <item>RAW</item>
     </string-array>
 </resources>

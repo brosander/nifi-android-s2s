@@ -24,65 +24,83 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.text.method.ScrollingMovementMethod;
-import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import org.apache.nifi.android.sitetosite.client.SiteToSiteClientConfig;
-import org.apache.nifi.android.sitetosite.client.SiteToSiteRemoteCluster;
+import org.apache.nifi.android.sitetosite.client.QueuedSiteToSiteClientConfig;
 import org.apache.nifi.android.sitetosite.client.TransactionResult;
-import org.apache.nifi.android.sitetosite.client.persistence.SiteToSiteDB;
+import org.apache.nifi.android.sitetosite.factory.PropertiesQueuedSiteToSiteClientConfigFactory;
 import org.apache.nifi.android.sitetosite.packet.ByteArrayDataPacket;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeatableIntent;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteRepeating;
 import org.apache.nifi.android.sitetosite.service.SiteToSiteService;
 import org.apache.nifi.android.sitetosite.service.TransactionResultCallback;
 import org.apache.nifi.android.sitetosite.util.Charsets;
-import org.apache.nifi.android.sitetositedemo.preference.SiteToSitePreferenceActivity;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 
 public class MainActivity extends AppCompatActivity implements ScheduleDialogCallback {
     public static final String LINE_SEPARATOR = System.getProperty("line.separator");
     private final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
     private final Handler handler = new Handler(Looper.getMainLooper());
     private DemoAppDB demoAppDB;
+    private QueuedSiteToSiteClientConfig siteToSiteClientConfig;
     private long lastTimestamp = 0;
 
-    @SuppressLint("ApplySharedPref")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        if (preferences.getString("client_type_preference", null) == null) {
-            SharedPreferences.Editor edit = preferences.edit();
-            edit.putString("client_type_preference", SiteToSiteRemoteCluster.ClientType.HTTP.name());
-            edit.commit();
-        }
         setContentView(R.layout.activity_main);
         demoAppDB = new DemoAppDB(getApplicationContext());
-        TextView sendResults = (TextView) findViewById(R.id.sendResults);
+        final TextView sendResults = (TextView) findViewById(R.id.sendResults);
         sendResults.setMovementMethod(new ScrollingMovementMethod());
+
+        Properties properties = new Properties();
+        final String s2sConfigName = "simple.properties";
+        InputStream resourceAsStream = MainActivity.class.getClassLoader().getResourceAsStream(s2sConfigName);
+        try {
+            properties.load(resourceAsStream);
+            siteToSiteClientConfig = new PropertiesQueuedSiteToSiteClientConfigFactory().create(properties);
+        } catch (final Exception e) {
+            sendResults.post(new Runnable() {
+                @SuppressLint("SetTextI18n")
+                @Override
+                public void run() {
+                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                    PrintStream printStream = new PrintStream(byteArrayOutputStream);
+                    try {
+                        e.printStackTrace(printStream);
+                    } finally {
+                        printStream.close();
+                    }
+                    sendResults.setText(e.getMessage() + "\n" + new String(byteArrayOutputStream.toByteArray(), Charsets.UTF_8) + "\n\n" + "Unable to load siteToSite configuration from " + s2sConfigName);
+                }
+            });
+            return;
+        } finally {
+            try {
+                resourceAsStream.close();
+            } catch (IOException e) {
+                // Ignore
+            }
+        }
         sendResults.post(new Runnable() {
             @Override
             public void run() {
@@ -91,29 +109,10 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
                     public void onReceive(Context context, Intent intent) {
                         refresh();
                     }
-                }, new IntentFilter(SiteToSiteDB.TRANSACTION_LOG_ENTRY_SAVED), null, handler);
+                }, new IntentFilter(DemoAppDB.TRANSACTION_LOG_ENTRY_SAVED), null, handler);
                 refresh();
             }
         });
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.preferences:
-                Intent intent = new Intent();
-                intent.setClassName(this, SiteToSitePreferenceActivity.class.getCanonicalName());
-                startActivity(intent);
-                return true;
-        }
-
-        return super.onOptionsItemSelected(item);
     }
 
     /**
@@ -122,7 +121,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
     public void sendMessage(View view) {
         Map<String, String> attributes = new HashMap<>();
         ByteArrayDataPacket dataPacket = new ByteArrayDataPacket(attributes, ((EditText) findViewById(R.id.edit_message)).getText().toString().getBytes(Charsets.UTF_8));
-        SiteToSiteService.sendDataPacket(getApplicationContext(), dataPacket, getClientConfig(), new TransactionResultCallback() {
+        SiteToSiteService.sendDataPacket(getApplicationContext(), dataPacket, siteToSiteClientConfig, new TransactionResultCallback() {
 
             @Override
             public Handler getHandler() {
@@ -143,38 +142,6 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
 
     public void schedule(View view) {
         new ScheduleDialogFragment().show(getSupportFragmentManager(), "schedule");
-    }
-
-    private SiteToSiteClientConfig getClientConfig() {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        HashSet<String> peerUrls = new HashSet<>(Arrays.asList(preferences.getString("peer_urls_preference", "http://localhost:8080/nifi")));
-        String proxyHost = preferences.getString("proxy_host_preference", "");
-        String proxyPortPreference = preferences.getString("proxy_port_preference", "0");
-        if (proxyPortPreference.isEmpty()) {
-            proxyPortPreference = "0";
-        }
-        int proxyPort = 0;
-        try {
-            proxyPort = Integer.parseInt(proxyPortPreference);
-        } catch (Exception e) {
-            Log.w(MainActivity.class.getCanonicalName(), "Unable to parse proxy port", e);
-        }
-
-        SiteToSiteRemoteCluster siteToSiteRemoteCluster = new SiteToSiteRemoteCluster();
-        siteToSiteRemoteCluster.setUrls(peerUrls);
-        siteToSiteRemoteCluster.setUsername(preferences.getString("username_preference", null));
-        siteToSiteRemoteCluster.setPassword(preferences.getString("password_preference", null));
-        siteToSiteRemoteCluster.setProxyHost(proxyHost);
-        siteToSiteRemoteCluster.setProxyPort(proxyPort);
-        siteToSiteRemoteCluster.setProxyUsername(preferences.getString("proxy_port_username", null));
-        siteToSiteRemoteCluster.setProxyPassword(preferences.getString("proxy_port_password", null));
-        siteToSiteRemoteCluster.setClientType(SiteToSiteRemoteCluster.ClientType.valueOf(preferences.getString("client_type_preference", SiteToSiteRemoteCluster.ClientType.HTTP.name())));
-
-        SiteToSiteClientConfig siteToSiteClientConfig = new SiteToSiteClientConfig();
-        siteToSiteClientConfig.setRemoteClusters(Collections.singletonList(siteToSiteRemoteCluster));
-        siteToSiteClientConfig.setPortName(preferences.getString("input_port_preference", null));
-
-        return siteToSiteClientConfig;
     }
 
     private void refresh() {
@@ -223,7 +190,7 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
 
     @Override
     public void onConfirm(long intervalMillis) {
-        SiteToSiteRepeatableIntent siteToSiteRepeatableIntent = SiteToSiteRepeating.createSendPendingIntent(getApplicationContext(), new TestDataCollector(((EditText) findViewById(R.id.edit_message)).getText().toString()), getClientConfig(), new RepeatingTransactionResultCallback());
+        SiteToSiteRepeatableIntent siteToSiteRepeatableIntent = SiteToSiteRepeating.createSendPendingIntent(getApplicationContext(), new TestDataCollector(((EditText) findViewById(R.id.edit_message)).getText().toString()), siteToSiteClientConfig, new RepeatingTransactionResultCallback());
         demoAppDB.save(siteToSiteRepeatableIntent);
         ((AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE)).setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime(), intervalMillis, siteToSiteRepeatableIntent.getPendingIntent());
     }
