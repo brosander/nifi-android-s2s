@@ -20,6 +20,7 @@ export ANDROID_HOME=YOUR_SDK_DIR
 
 ### Usage
 #### Setup
+SiteToSite can be configured via Java code or [initialized from a properties file](demo/src/main/java/org/apache/nifi/android/sitetositedemo/MainActivity.java#L87).  There are several sample configurations in [the demo app's resources folder.](demo/src/main/resources)
 ```java
 // Need to be on right thread if updating UI, can return null handler in callback otherwise
 final Handler handler = new Handler(Looper.getMainLooper());
@@ -123,7 +124,7 @@ queuedSiteToSiteClientConfig.setMaxSize(1024 * 100);
 Add data packet(s) to queue to send later
 ```java
 // Synchronous
-QueuedSiteToSiteClient queuedSiteToSiteClient = queuedSiteToSiteClientConfig.getQueuedSiteToSiteClient(context);
+QueuedSiteToSiteClient queuedSiteToSiteClient = queuedSiteToSiteClientConfig.createQueuedClient(context);
 queuedSiteToSiteClient.enqueue(dataPacket);
 queuedSiteToSiteClient.enqueue(dataPackets.iterator());
 
@@ -156,7 +157,7 @@ JobInfo.Builder processJobInfoBuilder = SiteToSiteJobService.createProcessJobInf
 processJobInfoBuilder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED);
 processJobInfoBuilder.setRequiresCharging(true);
 JobScheduler jobScheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
-jobScheduler.schedule(processJobInfoBuilder.build())
+jobScheduler.schedule(processJobInfoBuilder.build());
 ```
 
 ###### Cleanup

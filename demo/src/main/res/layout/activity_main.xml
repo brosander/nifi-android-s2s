@@ -50,7 +50,7 @@
             android:text="@string/button_cancel"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:id="@+id/button3"
+            android:id="@+id/cancelAlarmsButton"
             android:layout_weight="1"
             android:onClick="cancelAlarms"
             style="?android:attr/buttonBarButtonStyle"/>
@@ -59,7 +59,7 @@
             android:text="@string/button_schedule"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:id="@+id/button2"
+            android:id="@+id/scheduleButton"
             android:layout_weight="1"
             android:onClick="schedule"
             style="?android:attr/buttonBarButtonStyle"/>
@@ -68,9 +68,43 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:text="@string/button_send"
-            android:id="@+id/button"
+            android:id="@+id/sendButton"
             android:layout_weight="1"
             android:onClick="sendMessage"
+            style="?android:attr/buttonBarButtonStyle"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="?android:attr/buttonBarStyle">
+
+        <Button
+            android:text="@string/button_process"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/processButton"
+            android:layout_weight="1"
+            android:onClick="processMessages"
+            style="?android:attr/buttonBarButtonStyle"/>
+
+        <Button
+            android:text="@string/button_jobschedule"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/jobSchedule"
+            android:layout_weight="1"
+            android:onClick="jobSchedule"
+            style="?android:attr/buttonBarButtonStyle"/>
+
+        <Button
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="@string/button_enqueue"
+            android:id="@+id/enqueueButton"
+            android:layout_weight="1"
+            android:onClick="enqueueMessage"
             style="?android:attr/buttonBarButtonStyle"/>
     </LinearLayout>
 </LinearLayout>

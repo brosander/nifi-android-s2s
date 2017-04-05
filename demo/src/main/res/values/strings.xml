@@ -20,8 +20,11 @@
     <string name="edit_message">Enter a message</string>
     <string name="edit_message_default">Hello NiFi, I\'m Android</string>
     <string name="button_send">Send</string>
-    <string name="button_schedule">Schedule</string>
+    <string name="button_schedule">Repeating</string>
     <string name="button_cancel">Cancel Alarms</string>
+    <string name="button_process">Process</string>
+    <string name="button_enqueue">Enqueue</string>
+    <string name="button_jobschedule">JobSchedule</string>
     <string name="schedule_confirm">Confirm</string>
     <string name="schedule_cancel">Cancel</string>
     <string name="alarm_interval_prompt">Alarm Interval: </string>
