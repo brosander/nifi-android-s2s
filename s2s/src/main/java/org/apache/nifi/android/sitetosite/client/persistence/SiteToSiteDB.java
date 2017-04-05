@@ -40,7 +40,6 @@ import java.util.concurrent.TimeUnit;
  * Easily save and load state useful for site-to-site communication
  */
 public class SiteToSiteDB {
-    public static final String TRANSACTION_LOG_ENTRY_SAVED = SiteToSiteDB.class.getCanonicalName() + ".save(transactionLogEntry)";
     public static final String ID_COLUMN = "ID";
     public static final String CONTENT_COLUMN = "CONTENT";
     public static final String CREATED_COLUMN = "CREATED";
@@ -121,7 +120,7 @@ public class SiteToSiteDB {
             for (SiteToSiteRemoteCluster siteToSiteRemoteCluster : siteToSiteClientConfig.getRemoteClusters()) {
                 PeerStatus peerStatus = siteToSiteRemoteCluster.getPeerStatus();
                 if (peerStatus == null) {
-                    return;
+                    continue;
                 }
 
                 Parcel parcel = Parcel.obtain();
