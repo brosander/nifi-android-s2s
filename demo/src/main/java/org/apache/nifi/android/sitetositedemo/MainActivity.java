@@ -65,7 +65,6 @@ public class MainActivity extends AppCompatActivity implements ScheduleDialogCal
     private QueuedSiteToSiteClientConfig siteToSiteClientConfig;
     private long lastTimestamp = 0;
 
-    @SuppressLint("ApplySharedPref")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
