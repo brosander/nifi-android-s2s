@@ -21,5 +21,7 @@ import java.nio.charset.Charset;
 
 public class Charsets {
     public static final String UTF_8_NAME = "UTF-8";
+    public static final String ISO_8859_1_NAME = "ISO-8859-1";
     public static final Charset UTF_8 = Charset.forName(UTF_8_NAME);
+    public static final Charset ISO_8859_1 = Charset.forName(ISO_8859_1_NAME);
 }

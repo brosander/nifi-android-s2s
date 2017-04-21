@@ -85,6 +85,7 @@ public class SiteToSiteRemoteCluster implements Parcelable {
     private String truststoreType;
     private String proxyHost;
     private int proxyPort;
+    private String proxyAuthorizationType = "Basic";
     private String proxyUsername;
     private String proxyPassword;
     private PeerStatus peerStatus;
@@ -107,6 +108,7 @@ public class SiteToSiteRemoteCluster implements Parcelable {
             siteToSiteRemoteCluster.truststoreType = source.readString();
             siteToSiteRemoteCluster.proxyHost = source.readString();
             siteToSiteRemoteCluster.proxyPort = source.readInt();
+            siteToSiteRemoteCluster.proxyAuthorizationType = source.readString();
             siteToSiteRemoteCluster.proxyUsername = source.readString();
             siteToSiteRemoteCluster.proxyPassword = source.readString();
             siteToSiteRemoteCluster.peerStatus = source.readParcelable(SiteToSiteRemoteCluster.class.getClassLoader());
@@ -136,6 +138,7 @@ public class SiteToSiteRemoteCluster implements Parcelable {
         this.truststoreType = siteToSiteRemoteCluster.truststoreType;
         this.proxyHost = siteToSiteRemoteCluster.getProxyHost();
         this.proxyPort = siteToSiteRemoteCluster.getProxyPort();
+        this.proxyAuthorizationType = siteToSiteRemoteCluster.getProxyAuthorizationType();
         this.proxyUsername = siteToSiteRemoteCluster.getProxyUsername();
         this.proxyPassword = siteToSiteRemoteCluster.getProxyPassword();
         this.peerStatus = SerializationUtils.unmarshallParcelable(SerializationUtils.marshallParcelable(siteToSiteRemoteCluster.getPeerStatus()), PeerStatus.class);
@@ -293,6 +296,24 @@ public class SiteToSiteRemoteCluster implements Parcelable {
     }
 
     /**
+     * Gets the proxy authorization type
+     *
+     * @return the proxy authorization type
+     */
+    public String getProxyAuthorizationType() {
+        return proxyAuthorizationType;
+    }
+
+    /**
+     * Sets the proxy authorization type
+     *
+     * @param proxyAuthorizationType the proxy authorization type
+     */
+    public void setProxyAuthorizationType(String proxyAuthorizationType) {
+        this.proxyAuthorizationType = proxyAuthorizationType;
+    }
+
+    /**
      * Gets the proxy username
      *
      * @return the proxy username
@@ -416,6 +437,7 @@ public class SiteToSiteRemoteCluster implements Parcelable {
         dest.writeString(truststoreType);
         dest.writeString(proxyHost);
         dest.writeInt(proxyPort);
+        dest.writeString(proxyAuthorizationType);
         dest.writeString(proxyUsername);
         dest.writeString(proxyPassword);
         dest.writeParcelable(peerStatus, 0);
@@ -447,6 +469,8 @@ public class SiteToSiteRemoteCluster implements Parcelable {
             return false;
         if (proxyHost != null ? !proxyHost.equals(that.proxyHost) : that.proxyHost != null)
             return false;
+        if (proxyAuthorizationType != null ? !proxyAuthorizationType.equals(that.proxyAuthorizationType) : that.proxyAuthorizationType != null)
+            return false;
         if (proxyUsername != null ? !proxyUsername.equals(that.proxyUsername) : that.proxyUsername != null)
             return false;
         if (proxyPassword != null ? !proxyPassword.equals(that.proxyPassword) : that.proxyPassword != null)
@@ -472,6 +496,7 @@ public class SiteToSiteRemoteCluster implements Parcelable {
         result = 31 * result + (truststoreType != null ? truststoreType.hashCode() : 0);
         result = 31 * result + (proxyHost != null ? proxyHost.hashCode() : 0);
         result = 31 * result + proxyPort;
+        result = 31 * result + (proxyAuthorizationType != null ? proxyAuthorizationType.hashCode() : 0);
         result = 31 * result + (proxyUsername != null ? proxyUsername.hashCode() : 0);
         result = 31 * result + (proxyPassword != null ? proxyPassword.hashCode() : 0);
         result = 31 * result + (peerStatus != null ? peerStatus.hashCode() : 0);
