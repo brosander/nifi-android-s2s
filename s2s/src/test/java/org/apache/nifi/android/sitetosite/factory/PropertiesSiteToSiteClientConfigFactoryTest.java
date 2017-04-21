@@ -39,7 +39,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-public class PropertiesSiteToSiteClientConfigFactoryTest<T extends PropertiesSiteToSiteClientConfigFactory> {
+public class PropertiesSiteToSiteClientConfigFactoryTest {
     private PropertiesSiteToSiteClientConfigFactory propertiesSiteToSiteClientConfigFactory;
 
     @Before
@@ -71,6 +71,7 @@ public class PropertiesSiteToSiteClientConfigFactoryTest<T extends PropertiesSit
         String remote0TruststoreType = "BKS";
         String remote0ProxyHost = "remote0ProxyHost";
         int remote0ProxyPort = 1111;
+        String remote0ProxyAuthorizationType = "remote0ProxyAuthorizationType";
         String remote0ProxyUsername = "remote0ProxyUsername";
         String remote0ProxyPassword = "remote0ProxyPassword";
         SiteToSiteRemoteCluster.ClientType remote0ClientType = SiteToSiteRemoteCluster.ClientType.RAW;
@@ -97,6 +98,7 @@ public class PropertiesSiteToSiteClientConfigFactoryTest<T extends PropertiesSit
             writeLine(bufferedWriter, baseProp0 + "truststorePasswd=" + remote0TruststorePassword);
             writeLine(bufferedWriter, baseProp0 + "truststoreType=" + remote0TruststoreType);
 
+            writeLine(bufferedWriter, baseProp0 + "proxyAuthorizationType=" + remote0ProxyAuthorizationType);
             writeLine(bufferedWriter, baseProp0 + "proxyHost=" + remote0ProxyHost);
             writeLine(bufferedWriter, baseProp0 + "proxyPort=" + remote0ProxyPort);
             writeLine(bufferedWriter, baseProp0 + "proxyUsername=" + remote0ProxyUsername);
@@ -132,6 +134,7 @@ public class PropertiesSiteToSiteClientConfigFactoryTest<T extends PropertiesSit
         assertEquals(remote0TruststorePassword, getPrivateString(remote0, "truststorePassword"));
         assertEquals(remote0TruststoreType, getPrivateString(remote0, "truststoreType"));
 
+        assertEquals(remote0ProxyAuthorizationType, remote0.getProxyAuthorizationType());
         assertEquals(remote0ProxyHost, remote0.getProxyHost());
         assertEquals(remote0ProxyPort, remote0.getProxyPort());
         assertEquals(remote0ProxyUsername, remote0.getProxyUsername());
@@ -154,6 +157,7 @@ public class PropertiesSiteToSiteClientConfigFactoryTest<T extends PropertiesSit
         assertEquals(remote1TruststorePassword, getPrivateString(remote1, "truststorePassword"));
         assertEquals(remote1TruststoreType, getPrivateString(remote1, "truststoreType"));
 
+        assertEquals("Basic", remote1.getProxyAuthorizationType());
         assertNull(remote1.getProxyHost());
         assertEquals(0, remote1.getProxyPort());
         assertNull(remote1.getProxyUsername());

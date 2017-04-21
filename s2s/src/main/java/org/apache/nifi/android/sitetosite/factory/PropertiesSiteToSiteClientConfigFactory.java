@@ -109,6 +109,10 @@ public class PropertiesSiteToSiteClientConfigFactory implements SiteToSiteClient
         if (portString != null) {
             siteToSiteRemoteCluster.setProxyPort(Integer.parseInt(portString));
         }
+        String proxyAuthorizationType = getPropEmptyToNull(properties, propBase + "proxyAuthorizationType");
+        if (proxyAuthorizationType != null) {
+            siteToSiteRemoteCluster.setProxyAuthorizationType(proxyAuthorizationType);
+        }
         siteToSiteRemoteCluster.setProxyUsername(getPropEmptyToNull(properties, propBase + "proxyUsername"));
         siteToSiteRemoteCluster.setProxyPassword(getPropEmptyToNull(properties, propBase + "proxyPassword"));
 

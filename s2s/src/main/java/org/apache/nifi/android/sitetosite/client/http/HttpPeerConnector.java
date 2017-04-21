@@ -78,7 +78,7 @@ public class HttpPeerConnector {
         proxy = getProxy(siteToSiteRemoteCluster);
         String proxyUsername = siteToSiteRemoteCluster.getProxyUsername();
         if (proxy != null && proxyUsername != null && !proxyUsername.isEmpty()) {
-            proxyAuth = Base64.encodeToString((proxyUsername + ":" + siteToSiteRemoteCluster.getProxyPassword()).getBytes(Charsets.UTF_8), Base64.DEFAULT);
+            proxyAuth = siteToSiteRemoteCluster.getProxyAuthorizationType() + " " + Base64.encodeToString((proxyUsername + ":" + siteToSiteRemoteCluster.getProxyPassword()).getBytes(Charsets.ISO_8859_1), Base64.DEFAULT);
         } else {
             proxyAuth = null;
         }
