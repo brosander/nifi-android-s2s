@@ -20,7 +20,7 @@ export ANDROID_HOME=YOUR_SDK_DIR
 
 ### Usage
 #### Setup
-SiteToSite can be configured via Java code or [initialized from a properties file](demo/src/main/java/org/apache/nifi/android/sitetositedemo/MainActivity.java#L87).  There are several sample configurations in [the demo app's resources folder.](demo/src/main/resources)
+SiteToSite can be configured via Java code or [initialized from a properties file](demo/src/main/java/com/hortonworks/hdf/android/sitetositedemo/MainActivity.java#L87).  There are several sample configurations in [the demo app's resources folder.](demo/src/main/resources)
 ```java
 // Need to be on right thread if updating UI, can return null handler in callback otherwise
 final Handler handler = new Handler(Looper.getMainLooper());
