@@ -87,8 +87,8 @@ public class PeerTest {
 
     @Test
     public void testPeerCompareByIsSecure() throws Exception {
-        Peer peer1 = new Peer("hostname", 443, 6000, true, 0, 1000L); // should be first due to secure
-        Peer peer2 = new Peer("hostname", 443, 6000, false, 0, 1000L);
+        Peer peer1 = new Peer("hostname", 443, 6000, false, 0, 1000L); // should be first due to comparing bool cast to 0/1
+        Peer peer2 = new Peer("hostname", 443, 6000, true, 0, 1000L);
 
         assertEquals(-1, peer1.compareTo(peer2));
         assertEquals(1, peer2.compareTo(peer1));

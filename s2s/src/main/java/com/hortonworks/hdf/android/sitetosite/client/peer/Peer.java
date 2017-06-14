@@ -151,7 +151,7 @@ public class Peer implements Comparable<Peer>, Parcelable {
             if (rawPortCompare != 0) {
                 return rawPortCompare;
             }
-            return (o.secure ? 1 : 0) - (secure ? 1 : 0);
+            return (secure ? 1 : 0) - (o.secure? 1 : 0);
         }
     }
 
