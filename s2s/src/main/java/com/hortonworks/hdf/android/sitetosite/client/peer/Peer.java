@@ -145,7 +145,7 @@ public class Peer implements Comparable<Peer>, Parcelable {
             }
             int httpPortCompare = httpPort - o.httpPort;
             if (httpPortCompare != 0) {
-                return hostCompare;
+                return httpPortCompare;
             }
             int rawPortCompare = rawPort - o.rawPort;
             if (rawPortCompare != 0) {
