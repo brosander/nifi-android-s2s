@@ -47,19 +47,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static com.hortonworks.hdf.android.sitetosite.client.persistence.SiteToSiteDB.CONTENT_COLUMN;
-import static com.hortonworks.hdf.android.sitetosite.client.persistence.SiteToSiteDB.CREATED_COLUMN;
-import static com.hortonworks.hdf.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QEUE_PRIORITY_COLUMN;
-import static com.hortonworks.hdf.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_ATTRIBUTES_COLUMN;
-import static com.hortonworks.hdf.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TABLE_NAME;
-import static com.hortonworks.hdf.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TRANSACTIONS_TABLE_NAME;
-import static com.hortonworks.hdf.android.sitetosite.client.persistence.SiteToSiteDB.DATA_PACKET_QUEUE_TRANSACTION_COLUMN;
-import static com.hortonworks.hdf.android.sitetosite.client.persistence.SiteToSiteDB.EXPIRATION_MILLIS_COLUMN;
-import static com.hortonworks.hdf.android.sitetosite.client.persistence.SiteToSiteDB.ID_COLUMN;
+import static com.hortonworks.hdf.android.sitetosite.client.persistence.SiteToSiteDBConstants.*;
 
 public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
-    public static final String CANONICAL_NAME = SQLiteDataPacketQueue.class.getCanonicalName();
-    public static final String AGE_OFF_ROW_COUNT_QUERY = new StringBuilder("DELETE FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME)
+    private static final String CANONICAL_NAME = SQLiteDataPacketQueue.class.getCanonicalName();
+    private static final String AGE_OFF_ROW_COUNT_QUERY = new StringBuilder("DELETE FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME)
             .append(" WHERE ").append(ID_COLUMN)
             .append(" IN (SELECT ").append(ID_COLUMN)
             .append(" FROM ").append(DATA_PACKET_QUEUE_TABLE_NAME)
@@ -259,6 +251,8 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
         writableDatabase.beginTransaction();
         try {
             long currentTime = new Date().getTime();
+
+            // First, "fail" any stale S2S transactions that may have expired / failed / are stuck for any reason.
             writableDatabase.execSQL("UPDATE " + DATA_PACKET_QUEUE_TABLE_NAME +
                     " SET " + DATA_PACKET_QUEUE_TRANSACTION_COLUMN + " = NULL" +
                     " WHERE " + DATA_PACKET_QUEUE_TRANSACTION_COLUMN +
@@ -273,6 +267,8 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
             writableDatabase.endTransaction();
             writableDatabase.close();
         }
+
+        // Second, process queued packets that are not marked as part of an existing S2S transaction in priority order.
         SiteToSiteClient siteToSiteClient = siteToSiteClientConfig.createClient();
         while (doProcess(siteToSiteClient)) {
             Log.d(CANONICAL_NAME, " processed batch of transactions");
@@ -280,6 +276,11 @@ public class SQLiteDataPacketQueue extends AbstractQueuedSiteToSiteClient {
     }
 
     protected boolean doProcess(SiteToSiteClient siteToSiteClient) throws IOException {
+
+        // use the specified siteToSiteClient to create a transaction,
+        // iterate over my queued packets to the configured limit(s), sending each packet over the transaction,
+        // and complete the transaction.
+
         SQLiteDataPacketIterator sqLiteDataPacketIterator = getSqLiteDataPacketIterator();
         if (!sqLiteDataPacketIterator.hasNext()) {
             return false;
